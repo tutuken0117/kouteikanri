@@ -174,6 +174,8 @@ button,input,select{font:inherit;color:inherit}
 .lrow.drag{opacity:.4}
 .grip{flex:0 0 auto;width:13px;height:100%;cursor:grab;display:flex;align-items:center;justify-content:center;color:var(--c-text-3);font-size:11px;user-select:none}
 .grip:active{cursor:grabbing}
+.grip,.track{touch-action:none}
+@media (hover:none){.xbtn{opacity:1}}
 .swatch{flex:0 0 auto;width:13px;height:13px;border:0;background:none;padding:0;cursor:pointer;line-height:0}
 .rname{flex:1 1 auto;min-width:0;font-size:12px;background:transparent;border:0;padding:2px 3px;border-radius:2px}
 .rname:focus{outline:0;background:var(--c-field-focus);box-shadow:inset 0 0 0 1px var(--c-accent)}
@@ -798,10 +800,6 @@ function renderHead(){
   document.documentElement.style.setProperty('--h-dow', showDow?'16px':'2px');
 }
 
-function textW(str,fs){
-  let w=0; for(const ch of String(str||'')) w += (ch.charCodeAt(0)>0x2E7F?1:0.56);
-  return w*fs;
-}
 const ALIGN={left:'al',center:'ac',right:'ar'};
 function textW(str,fs){ let w=0; for(const ch of String(str||'')) w += (ch.charCodeAt(0)>0x2E7F?1:0.56); return w*fs; }
 function noteFS(){ return (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--note-fs'))||9); }
@@ -867,6 +865,7 @@ function renderRows(){
     wt.addEventListener('input',()=>{ r.weight=Number(wt.value)||0; renderCurve(); renderMTab(); updateHint(); save(); });
     xb.addEventListener('click',()=>{ if(state.rows.length<=1) return; state.rows.splice(ri,1); sel=null; render(); save(); });
     g.addEventListener('mousedown',e=>startRowDrag(e,ri));
+    g.addEventListener('pointerdown',e=>{ if(e.pointerType!=='mouse') startRowDrag(e,ri); });
     lr.append(g,nm,wt,el('span','pct','%'),xb);
     lf.appendChild(lr);
 
@@ -1101,7 +1100,7 @@ function freeWindow(row,kind,except,anchor){
 function dayFromEvent(e,node){ const r=node.getBoundingClientRect(); return clamp(Math.floor((e.clientX-r.left)/state.opts.cw),0,days.length-1); }
 const rowById = id => state.rows.find(r=>r.id===id);
 
-$('#tlBody').addEventListener('mousedown',e=>{
+function onTrackDown(e){
   const track=e.target.closest('.track'); if(!track) return;
   const row=rowById(track.dataset.row); if(!row) return;
   const textNode=e.target.closest('.btext');
@@ -1134,8 +1133,8 @@ $('#tlBody').addEventListener('mousedown',e=>{
     select(row,t,kind);
     dragging={mode:'create',row,t,node,track,grab:d,s0:d,e0:d,kind:kind,win:fw,x0:e.clientX};
   }
-});
-window.addEventListener('mousemove',e=>{
+}
+function onDragMove(e){
   if(rowDrag){ moveRowDrag(e); return; }
   if(!dragging) return;
   const d=dayFromEvent(e,dragging.track), t=dragging.t, n=days.length-1;
@@ -1178,8 +1177,8 @@ window.addEventListener('mousemove',e=>{
   dragging.node.style.left=(a*cw)+'px';
   dragging.node.style.width=Math.max(3,(b-a+1)*cw)+'px';
   renderCurve(); syncInspector();
-});
-window.addEventListener('mouseup',()=>{
+}
+function onDragEnd(){
   if(rowDrag){ endRowDrag(); return; }
   if(!dragging) return;
   const d=dragging; dragging=null;
@@ -1192,7 +1191,16 @@ window.addEventListener('mouseup',()=>{
   }
   if(!d.moved) return;   /* 動いていない＝ただのクリック。DOMを保持してダブルクリックを効かせる */
   render(); save();
-});
+}
+/* マウスに加えてタッチ・ペンでも同じ操作ができるようにする（pointerdown を止めると互換マウスイベントは発生しない） */
+const notMouse = fn => e => { if(e.pointerType!=='mouse') fn(e); };
+$('#tlBody').addEventListener('mousedown',onTrackDown);
+$('#tlBody').addEventListener('pointerdown',notMouse(onTrackDown));
+window.addEventListener('mousemove',onDragMove);
+window.addEventListener('pointermove',notMouse(onDragMove));
+window.addEventListener('mouseup',onDragEnd);
+window.addEventListener('pointerup',notMouse(onDragEnd));
+window.addEventListener('pointercancel',notMouse(onDragEnd));
 function addTextAt(row,dayIdx,band){
   const tx={id:uid(),row:row.id,at:dateOf(clamp(dayIdx,0,days.length-1)),band:band||'plan',text:'',align:'center'};
   state.texts.push(tx);
@@ -1487,7 +1495,6 @@ function renderKanri(){
   h+=foot('累計 出来高 %','',g=>{ const d=der.map[g.key]; return '<span'+(d.plan>100.5?' style="color:var(--c-actual)"':'')+'>'+d.plan.toFixed(2)+'</span> / '+(d.idx<=der.lastA? d.act.toFixed(2):'–'); });
   h+='</tfoot></table>';
   wrap.innerHTML=h;
-  const amtInfo=state.items.length+' 項目 ／ 構成比合計 '+(totR*100/totR*100/100*100).toFixed(0)+'%';
   $('#kSum').textContent=state.items.length+' 項目 ／ 週 '+ps.length+' 区分 ／ 計画累計 '+(der?der.map[ps[ps.length-1].key].plan.toFixed(1):'0')+'%';
   wrap.querySelectorAll('tbody input').forEach(inp=>{
     inp.addEventListener('input',()=>{
@@ -1813,8 +1820,7 @@ function openCalModal(){
       '<button class="mini" id="calLoad2026">2026年度カレンダーを再読込</button>'+
       '<button class="mini danger" id="calClear">追加休日をすべて消す</button>'+
       '<button class="mini" id="calClose">閉じる</button>'+
-    '</div>'+
-    '<p style="margin-top:10px">ツールバーの「休日編集」をONにすると、工程表の日付欄をクリックするだけで 1 日ずつ休日／稼働日を切り替えられます。</p>');
+    '</div>');
   $('#calApply').onclick=()=>{
     const b=$('#calBase').querySelector('input[name=cb]:checked');
     state.cal.base=b?b.value:'sun';
@@ -1853,7 +1859,10 @@ function openDataModal(){
       Object.assign(state.meta,o.meta||{}); Object.assign(state.opts,o.opts||{});
       if(o.cal) Object.assign(state.cal,o.cal);
       state.rows=o.rows.map(r=>({acts:[],...r})); state.actual=o.actual||{};
-      migrateNotes(); applyMeta(); syncToggles(); setPageCSS(); applyFont(); sel=null; selText=null; render(); save(); closeModal(); toast('読み込みました');
+      state.wplan=o.wplan||{}; state.wact=o.wact||{}; state.texts=o.texts||[];
+      state.items=o.items||[]; state.iplan=o.iplan||{}; state.iact=o.iact||{};
+      migrateNotes(); forceFixedOpts(); applyMeta(); syncToggles(); setPageCSS(); applyFont(); sel=null; selText=null;
+      setView(state.opts.view||'chart'); save(); closeModal(); toast('読み込みました');
     }catch(e){ toast('データの形式が正しくありません'); } };
   $('#dFile').onclick=()=>{ try{
       const a=document.createElement('a');
@@ -1867,8 +1876,9 @@ function openDataModal(){
   $('#dReset').onclick=()=>{ if(!confirm('すべての入力を消去して初期状態に戻します。よろしいですか？')) return;
     try{localStorage.removeItem(KEY);}catch(e){}
     state.actual={}; state.wplan={}; state.wact={}; state.texts=[]; state.meta.name=state.meta.owner='';
+    state.items=[]; state.iplan={}; state.iact={};
     state.cal.off={}; CAL2026.forEach(k=>state.cal.off[k]=1); state.cal.work={};
-    seed(); applyMeta(); sel=null; render(); save(); closeModal(); toast('初期化しました'); };
+    seed(); applyMeta(); sel=null; selText=null; setView(state.opts.view||'chart'); save(); closeModal(); toast('初期化しました'); };
   $('#dClose').onclick=closeModal;
 }
 
