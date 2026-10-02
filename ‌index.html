@@ -1,0 +1,1934 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>工事工程管理表</title>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@400;600&family=Zen+Maru+Gothic:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* ============================================================
+   工事工程管理表  /  construction schedule management
+   ・休日／検査期間／工程バーはSVG描画（印刷の「背景のグラフィック」OFFでも色が出る）
+   ============================================================ */
+:root{
+  --f-disp:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic Medium","Yu Gothic",Meiryo,sans-serif;
+  --f-body:"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+  --f-sheet:"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+  --note-fs:9px;
+  --f-mono:"IBM Plex Mono","Roboto Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+
+  --c-stage:#DCE1E8;
+  --c-paper:#FFFFFF;
+  --c-paper-2:#F6F8FB;
+  --c-edge:#C3CBD6;
+  --c-line:#E3E8EF;
+  --c-line-mid:#C8D1DD;
+  --c-line-strong:#93A0B2;
+  --c-text:#18212D;
+  --c-text-2:#57657A;
+  --c-text-3:#8A97A8;
+  --c-field:#F2F5F9;
+  --c-field-focus:#FFFFFF;
+  --c-accent:#1D4E7C;
+  --c-accent-2:#3D7BB0;
+  --c-accent-soft:#E6EEF7;
+  --c-sat:#2F6F8F;
+  --c-sun:#B4433F;
+  --c-sat-a:.12;
+  --c-sun-a:.12;
+  --c-satw-a:.055;
+  --c-insp:#B8862B;
+  --c-bar:#111820;
+  --c-plan:#111820;
+  --c-actual:#C1272D;
+  --c-band:#3D7BB0;
+  --c-chrome:#131A23;
+  --c-chrome-t:#E9EEF4;
+  --c-chrome-2:#95A3B4;
+  --c-chrome-line:#2A3542;
+  --c-chrome-hi:#1E2833;
+  --c-shadow:rgba(21,32,45,.18);
+
+  --leftw:252px;
+  --rowh:36px;
+  --cw:10px;
+  --h-month:22px;
+  --h-day:18px;
+  --h-dow:16px;
+  --curveh:150px;
+  --mrowh:17px;
+  --mheadh:14px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --c-stage:#0C1116;--c-paper:#171E27;--c-paper-2:#1C242E;--c-edge:#000;
+    --c-line:#2A3341;--c-line-mid:#3A4657;--c-line-strong:#6E7C8F;
+    --c-text:#DFE6EF;--c-text-2:#A3B0C0;--c-text-3:#7C8899;
+    --c-field:#212A35;--c-field-focus:#26313E;
+    --c-accent:#79B0E2;--c-accent-2:#9AC6ED;--c-accent-soft:#1F2C3A;
+    --c-sat:#60A8CD;--c-sun:#E06E66;--c-sat-a:.17;--c-sun-a:.17;--c-satw-a:.08;--c-insp:#D5A94A;
+    --c-bar:#CBD5E0;--c-plan:#CBD5E0;--c-actual:#F0705F;--c-band:#6FA6D8;
+    --c-chrome:#0F151B;--c-chrome-line:#232D39;--c-chrome-hi:#1A232D;
+    --c-shadow:rgba(0,0,0,.5);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --c-stage:#0C1116;--c-paper:#171E27;--c-paper-2:#1C242E;--c-edge:#000;
+  --c-line:#2A3341;--c-line-mid:#3A4657;--c-line-strong:#6E7C8F;
+  --c-text:#DFE6EF;--c-text-2:#A3B0C0;--c-text-3:#7C8899;
+  --c-field:#212A35;--c-field-focus:#26313E;
+  --c-accent:#79B0E2;--c-accent-2:#9AC6ED;--c-accent-soft:#1F2C3A;
+  --c-sat:#60A8CD;--c-sun:#E06E66;--c-sat-a:.17;--c-sun-a:.17;--c-satw-a:.08;--c-insp:#D5A94A;
+  --c-bar:#CBD5E0;--c-plan:#CBD5E0;--c-actual:#F0705F;--c-band:#6FA6D8;
+  --c-chrome:#0F151B;--c-chrome-line:#232D39;--c-chrome-hi:#1A232D;
+  --c-shadow:rgba(0,0,0,.5);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--c-stage);color:var(--c-text);font-family:var(--f-body);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--c-accent-2);outline-offset:1px}
+
+/* ---------- chrome ---------- */
+.chrome{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:8px 14px;
+  background:var(--c-chrome);color:var(--c-chrome-t);border-bottom:1px solid var(--c-chrome-line);box-shadow:0 1px 12px rgba(0,0,0,.22)}
+.brand{display:flex;align-items:baseline;gap:9px;padding-right:6px;border-right:1px solid var(--c-chrome-line)}
+.brand b{font-family:var(--f-disp);font-weight:900;font-size:15px;letter-spacing:.06em}
+.brand span{font-size:10px;letter-spacing:.22em;color:var(--c-chrome-2);font-family:var(--f-mono)}
+.grp{display:flex;align-items:center;gap:6px}
+.grp+.grp{padding-left:11px;border-left:1px solid var(--c-chrome-line)}
+.grp>label{font-size:10.5px;letter-spacing:.1em;color:var(--c-chrome-2)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:3px;background:var(--c-chrome-hi);
+  border:1px solid var(--c-chrome-line);color:var(--c-chrome-t);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;
+  transition:background .12s ease,border-color .12s ease,transform .06s ease}
+.btn:hover{background:#26313E;border-color:#3A4756}
+.btn:disabled{opacity:.35;cursor:default}
+.btn:disabled:hover{background:var(--c-chrome-hi);border-color:var(--c-chrome-line)}
+.btn:active{transform:translateY(1px)}
+.btn.on{background:var(--c-accent-2);border-color:var(--c-accent-2);color:#0B121A;font-weight:700}
+.btn.on.act{background:#D8624A;border-color:#D8624A;color:#fff}
+.btn.primary{background:#B9532E;border-color:#C96B45;color:#fff;font-weight:700;letter-spacing:.03em}
+.btn.primary:hover{background:#C96038}
+.btn.ghost{background:transparent}
+.seg{display:flex;border:1px solid var(--c-chrome-line);border-radius:3px;overflow:hidden}
+.seg .btn{border:0;border-radius:0;background:transparent;padding:6px 10px}
+.chrome input[type=range]{width:96px;accent-color:var(--c-accent-2)}
+.chrome .num{width:42px;background:var(--c-chrome-hi);border:1px solid var(--c-chrome-line);border-radius:3px;padding:4px 5px;
+  font-family:var(--f-mono);font-size:11.5px;text-align:right}
+.spacer{flex:1 1 auto}
+.hint{font-size:11px;color:var(--c-chrome-2);font-family:var(--f-mono)}
+
+/* ---------- stage & sheet ---------- */
+.stage{padding:18px 18px 110px;display:flex;justify-content:center;overflow:auto}
+.sheet{font-family:var(--f-sheet);background:var(--c-paper);border:1px solid var(--c-edge);box-shadow:0 10px 34px -12px var(--c-shadow);
+  width:100%;max-width:1600px;padding:14px 16px 12px;display:flex;flex-direction:column;gap:9px}
+.sheet-head{border-bottom:2px solid var(--c-text);padding-bottom:6px}
+.sheet-head h1{margin:0;font-family:var(--f-disp);font-weight:900;font-size:21px;letter-spacing:.16em}
+.sheet-head .doc-meta{text-align:right;font-family:var(--f-mono);font-size:10.5px;color:var(--c-text-2);line-height:1.6}
+
+.info{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1.1fr) minmax(0,1fr) auto;border:1px solid var(--c-line-mid)}
+.info .fld{display:flex;align-items:stretch;border-right:1px solid var(--c-line-mid);min-width:0}
+.info .fld:last-child{border-right:0}
+.info .fld>.lb{flex:0 0 auto;display:flex;align-items:center;padding:0 9px;background:var(--c-paper-2);border-right:1px solid var(--c-line-mid);
+  font-size:10.5px;font-weight:700;letter-spacing:.14em;color:var(--c-text-2);white-space:nowrap}
+.info .fld>.vl{flex:1 1 auto;display:flex;align-items:center;gap:5px;padding:4px 8px;min-width:0}
+.inp{width:100%;min-width:0;background:transparent;border:0;border-bottom:1px dotted transparent;padding:2px 1px;font-size:13px}
+.inp:hover{border-bottom-color:var(--c-line-mid)}
+.inp:focus{outline:0;background:var(--c-field-focus);border-bottom-color:var(--c-accent)}
+.inp.big{font-size:15px;font-weight:700;font-family:var(--f-disp)}
+.inp.date{font-family:var(--f-mono);font-size:12px;width:auto;flex:0 1 auto}
+.inp.n{width:34px;flex:0 0 auto;text-align:right;font-family:var(--f-mono);font-size:12px;border-bottom:1px dotted var(--c-line-mid)}
+.inp.n::-webkit-outer-spin-button,.inp.n::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.dash,.unit{color:var(--c-text-3);font-size:11px;white-space:nowrap}
+.days-badge{font-family:var(--f-mono);font-size:10.5px;color:var(--c-text-2);background:var(--c-field);border:1px solid var(--c-line);
+  border-radius:2px;padding:1px 5px;white-space:nowrap}
+.pv{display:none;min-width:0;font-size:13px;line-height:1.35;overflow-wrap:anywhere}
+.pv.big{font-family:var(--f-disp);font-weight:700;font-size:15px}
+.pv.date{font-family:var(--f-mono);font-size:12px;white-space:nowrap}
+
+/* ---------- board ---------- */
+.board{border:1px solid var(--c-line-strong);overflow:auto;position:relative;background:var(--c-paper)}
+.binner{display:grid;grid-template-columns:var(--leftw) max-content;width:max-content}
+.q00{position:sticky;top:0;left:0;z-index:6;background:var(--c-paper-2);border-right:1px solid var(--c-line-strong)}
+.q01{position:sticky;top:0;z-index:5;background:var(--c-paper)}
+.q10{position:sticky;left:0;z-index:4;background:var(--c-paper);border-right:1px solid var(--c-line-strong)}
+.q11{position:relative;z-index:1}
+.tlmain{position:relative}
+.hlayer{position:relative;z-index:1;height:100%}
+
+.lh{height:calc(var(--h-month) + var(--h-day) + var(--h-dow));display:flex;align-items:flex-end;gap:6px;padding:0 8px 4px;
+  border-bottom:1px solid var(--c-line-strong)}
+.lh .t1{flex:1 1 auto;font-family:var(--f-disp);font-weight:700;font-size:12px;letter-spacing:.2em}
+.lh .t2{flex:0 0 auto;font-size:10px;letter-spacing:.1em;color:var(--c-text-2);width:52px;text-align:center}
+
+.lrow{height:var(--rowh);display:flex;align-items:center;gap:5px;padding:0 6px 0 3px;border-bottom:1px solid var(--c-line);background:var(--c-paper)}
+.lrow:hover{background:var(--c-paper-2)}
+.lrow.sel{background:var(--c-accent-soft)}
+.lrow.drag{opacity:.4}
+.grip{flex:0 0 auto;width:13px;height:100%;cursor:grab;display:flex;align-items:center;justify-content:center;color:var(--c-text-3);font-size:11px;user-select:none}
+.grip:active{cursor:grabbing}
+.swatch{flex:0 0 auto;width:13px;height:13px;border:0;background:none;padding:0;cursor:pointer;line-height:0}
+.rname{flex:1 1 auto;min-width:0;font-size:12px;background:transparent;border:0;padding:2px 3px;border-radius:2px}
+.rname:focus{outline:0;background:var(--c-field-focus);box-shadow:inset 0 0 0 1px var(--c-accent)}
+.rwt{flex:0 0 auto;width:44px;text-align:right;font-family:var(--f-mono);font-size:11.5px;background:transparent;border:0;
+  border-bottom:1px dotted var(--c-line-mid);padding:1px 3px;-moz-appearance:textfield}
+.rwt:focus{outline:0;background:var(--c-field-focus);border-bottom-color:var(--c-accent)}
+.rwt::-webkit-outer-spin-button,.rwt::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.pct{flex:0 0 auto;font-size:9.5px;color:var(--c-text-3);width:8px}
+.xbtn{flex:0 0 auto;width:16px;height:16px;border:0;background:transparent;color:var(--c-text-3);cursor:pointer;border-radius:2px;font-size:13px;opacity:0}
+.lrow:hover .xbtn{opacity:1}
+.xbtn:hover{background:var(--c-accent-soft);color:var(--c-sun)}
+.addrow{height:var(--rowh);display:flex;align-items:center;gap:6px;padding:0 8px;width:100%;background:transparent;border:0;
+  border-bottom:1px solid var(--c-line);color:var(--c-text-2);font-size:11.5px;cursor:pointer;text-align:left}
+.addrow:hover{background:var(--c-accent-soft);color:var(--c-accent)}
+
+.laxis{height:var(--curveh);position:relative;border-top:1px solid var(--c-line-strong);background:var(--c-paper-2)}
+.laxis .cap{position:absolute;left:8px;top:6px;font-family:var(--f-disp);font-weight:700;font-size:11.5px;letter-spacing:.16em}
+.laxis .tick{position:absolute;right:6px;transform:translateY(-50%);font-family:var(--f-mono);font-size:9.5px;color:var(--c-text-2)}
+.laxis .lgd{position:absolute;left:8px;bottom:5px;display:flex;flex-direction:column;gap:2px;font-size:9px;color:var(--c-text-2)}
+.laxis .lgd span{display:flex;align-items:center;gap:5px}
+
+/* timeline layers */
+.bgsvg{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.tl-body,.tl-curve,.rowpad{position:relative;z-index:1}
+.tl-head{height:calc(var(--h-month) + var(--h-day) + var(--h-dow));border-bottom:1px solid var(--c-line-strong);position:sticky}
+.tl-head.caledit{cursor:pointer}
+.mo{position:absolute;top:0;height:var(--h-month);display:flex;align-items:center;justify-content:center;border-right:1px solid var(--c-line-strong);
+  border-bottom:1px solid var(--c-line);background:var(--c-paper-2);font-family:var(--f-disp);font-weight:700;font-size:11.5px;letter-spacing:.08em;overflow:hidden;white-space:nowrap}
+.dn{position:absolute;top:var(--h-month);height:var(--h-day);display:flex;align-items:center;justify-content:center;
+  font-family:var(--f-mono);font-size:9.5px;color:var(--c-text-2);white-space:nowrap}
+.dw{position:absolute;top:calc(var(--h-month) + var(--h-day));height:var(--h-dow);display:flex;align-items:center;justify-content:center;
+  font-size:9px;color:var(--c-text-3);overflow:hidden}
+.dn.sat,.dw.sat{color:var(--c-sat)}
+.dn.off,.dw.off{color:var(--c-sun);font-weight:700}
+.inspband{position:absolute;top:var(--h-month);height:calc(var(--h-day) + var(--h-dow));display:flex;align-items:center;justify-content:center;
+  font-size:9.5px;font-weight:700;letter-spacing:.24em;color:var(--c-insp);white-space:nowrap;overflow:hidden;pointer-events:none}
+
+.track{position:relative;height:var(--rowh);border-bottom:1px solid var(--c-line);cursor:crosshair}
+.bar{position:absolute;z-index:2;cursor:grab;background:none}
+.bar.plan{color:var(--c-bar);top:calc(var(--rowh) * 0.44 - 7px);height:14px}
+.bar.act{color:var(--c-actual);top:calc(var(--rowh) * 0.89 - 7px);height:14px}
+.bar .ln{position:absolute;left:0;right:0;top:6px;height:2px;background:currentColor}
+.bar .ep{position:absolute;top:2.5px;width:7px;height:7px;border-radius:50%;border:1.5px solid currentColor;background:var(--c-paper);box-sizing:border-box}
+.bar .ep.l{left:-3.5px}
+.bar .ep.r{right:-3.5px}
+.bar:hover .ln{height:3px;top:5.5px}
+.bar.sel{outline:1.5px dashed var(--c-accent-2);outline-offset:2px;border-radius:2px}
+.bar.ghost{opacity:.55;pointer-events:none}
+.bar .hd{position:absolute;top:0;bottom:0;width:8px;cursor:ew-resize;z-index:3}
+.bar .hd.l{left:-4px}
+.bar .hd.r{right:-4px}
+.btext{position:absolute;z-index:5;white-space:nowrap;cursor:move;line-height:1.15;padding:0 1px;border-radius:2px;font-family:var(--f-sheet)}
+.btext.plan{top:calc(var(--rowh) * 0.04);font-size:var(--note-fs);color:var(--c-bar)}
+.btext.act{top:calc(var(--rowh) * 0.57);font-size:var(--note-fs);color:var(--c-actual)}
+.btext.ac{transform:translateX(-50%)}
+.btext.ar{transform:translateX(-100%)}
+.btext:hover{background:var(--c-accent-soft);outline:1px dotted var(--c-accent)}
+.btext.sel{outline:1px dashed var(--c-accent-2);background:var(--c-accent-soft)}
+.tick-mark{position:absolute;width:1px;z-index:3;background:currentColor;opacity:.45;pointer-events:none}
+.bar-edit{position:absolute;z-index:9;height:18px;font-family:var(--f-sheet);border:1px solid var(--c-accent);background:var(--c-paper);
+  color:var(--c-text);font-size:11px;padding:0 4px;border-radius:2px}
+.rowpad{height:var(--rowh);border-bottom:1px solid var(--c-line)}
+#bgSvg .pbars{display:none}
+
+.tl-curve{height:var(--curveh);border-top:1px solid var(--c-line-strong)}
+.tl-curve svg{display:block}
+
+/* 月別出来高テーブル */
+.mtab{position:relative;border-top:1px solid var(--c-line-strong);background:var(--c-paper)}
+.lmtab{border-top:1px solid var(--c-line-strong);background:var(--c-paper-2)}
+.mrow,.lmrow{height:var(--mrowh);position:relative;border-bottom:1px solid var(--c-line)}
+.wtab,.lwtab{border-top:1px solid var(--c-line-strong);background:var(--c-field)}
+.wrow,.lwrow{height:var(--mrowh);position:relative;border-bottom:1px solid var(--c-line)}
+.wrow:last-child,.lwrow:last-child{border-bottom:0}
+.lwrow{display:flex;align-items:center;padding:0 8px;gap:6px;font-size:10px;color:var(--c-text-2)}
+.lwrow:first-child{font-size:9.5px;color:var(--c-text-3);letter-spacing:.04em}
+.lwrow.p .tag{color:var(--c-plan);border:1px solid var(--c-plan);border-radius:2px;padding:0 4px;font-size:9px}
+.lwrow.a .tag{color:var(--c-actual);border:1px solid var(--c-actual);border-radius:2px;padding:0 4px;font-size:9px}
+.whead{height:var(--mrowh);position:relative;border-bottom:1px solid var(--c-line)}
+.wcell{position:absolute;top:0;height:100%;border-right:1px solid var(--c-line-mid);overflow:hidden}
+.wcell.h{display:flex;align-items:center;justify-content:center;font-family:var(--f-mono);font-size:9px;color:var(--c-text-3)}
+.wi{width:100%;height:100%;border:0;background:transparent;text-align:center;font-family:var(--f-mono);font-size:9.5px;padding:0;-moz-appearance:textfield}
+.wi::-webkit-outer-spin-button,.wi::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.wi.p{color:var(--c-plan)} .wi.a{color:var(--c-actual)}
+.wi:focus{outline:0;background:var(--c-field-focus);box-shadow:inset 0 0 0 1px var(--c-accent)}
+.wi::placeholder{color:var(--c-text-3);opacity:.5}
+.mrow.mhead,.lmrow.h{height:var(--mheadh);background:var(--c-paper-2)}
+.lmrow.h{font-size:9.5px;letter-spacing:.1em;color:var(--c-text-2);justify-content:flex-start}
+.mcell.h{font-size:9px;color:var(--c-text-2)}
+.mrow:last-child,.lmrow:last-child{border-bottom:0}
+.lmrow{display:flex;align-items:center;padding:0 8px;font-size:10px;letter-spacing:.06em;color:var(--c-text-2);gap:6px}
+.lmrow b{font-weight:700;color:var(--c-text)}
+.lmrow .tag{font-family:var(--f-mono);font-size:9px;padding:0 4px;border:1px solid var(--c-line-mid);border-radius:2px}
+.lmrow.a .tag{color:var(--c-actual);border-color:var(--c-actual)}
+.lmrow.p .tag{color:var(--c-plan);border-color:var(--c-plan)}
+.mcell{position:absolute;top:0;height:100%;border-right:1px solid var(--c-line-mid);display:flex;align-items:center;justify-content:center;
+  font-family:var(--f-mono);font-size:9.5px;color:var(--c-text-2);overflow:hidden}
+.mcell.p{color:var(--c-plan)}
+.mcell.a{color:var(--c-actual)}
+.mi{width:100%;height:100%;border:0;background:transparent;text-align:center;font-family:var(--f-mono);font-size:9.5px;color:var(--c-actual);
+  padding:0;-moz-appearance:textfield}
+.mi::-webkit-outer-spin-button,.mi::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.mi:focus{outline:0;background:var(--c-field-focus);box-shadow:inset 0 0 0 1px var(--c-accent)}
+.mi::placeholder{color:var(--c-text-3);opacity:.6}
+
+.sheet-foot{display:flex;justify-content:space-between;align-items:center;gap:16px;font-size:10px;color:var(--c-text-3);font-family:var(--f-mono);letter-spacing:.04em}
+.legend{display:flex;gap:13px;align-items:center;flex-wrap:wrap}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+
+/* ---------- inspector ---------- */
+.inspector{position:fixed;left:18px;bottom:18px;z-index:70;width:292px;background:var(--c-paper);border:1px solid var(--c-line-mid);
+  border-radius:4px;box-shadow:0 14px 40px -14px var(--c-shadow);padding:11px 12px 12px;display:none}
+.inspector.show{display:block}
+.insp-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.insp-h b{font-family:var(--f-disp);font-size:12px;letter-spacing:.12em}
+.insp-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.insp-row>label{flex:0 0 46px;font-size:10.5px;color:var(--c-text-2);letter-spacing:.08em}
+.insp-row input[type=text],.insp-row input[type=date]{flex:1 1 auto;min-width:0;background:var(--c-field);border:1px solid var(--c-line-mid);
+  border-radius:2px;padding:4px 6px;font-size:12px}
+.insp-row input[type=date]{font-family:var(--f-mono);font-size:11.5px}
+.insp-row input:focus{outline:0;border-color:var(--c-accent);background:var(--c-field-focus)}
+.nhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:9px 0 5px;font-size:10.5px;color:var(--c-text-2);letter-spacing:.06em}
+.nlist{display:flex;flex-direction:column;gap:5px;max-height:190px;overflow:auto}
+.nrow{display:flex;align-items:center;gap:5px}
+.nrow input.t{flex:1 1 auto;min-width:0;background:var(--c-field);border:1px solid var(--c-line-mid);border-radius:2px;padding:3px 5px;font-size:11.5px}
+.nrow input.t:focus{outline:0;border-color:var(--c-accent);background:var(--c-field-focus)}
+.nrow input.d{flex:0 0 auto;width:76px;background:var(--c-field);border:1px solid var(--c-line-mid);border-radius:2px;padding:3px 3px;font-family:var(--f-mono);font-size:10px}
+.nrow .seg2{flex:0 0 auto;width:66px}
+.nrow .seg2 button{padding:3px 0;font-size:10px}
+.nrow .x{flex:0 0 auto;width:18px;height:20px;border:0;background:transparent;color:var(--c-text-3);cursor:pointer;border-radius:2px;font-size:13px}
+.nrow .x:hover{color:var(--c-actual);background:var(--c-accent-soft)}
+.nempty{font-size:11px;color:var(--c-text-3);padding:2px 0}
+.seg2{display:flex;gap:0;border:1px solid var(--c-line-mid);border-radius:3px;overflow:hidden;flex:1 1 auto}
+.seg2 button{flex:1 1 auto;padding:4px 0;border:0;background:var(--c-field);cursor:pointer;font-size:11.5px;border-right:1px solid var(--c-line-mid)}
+.seg2 button:last-child{border-right:0}
+.seg2 button:hover{background:var(--c-accent-soft)}
+.seg2 button.on{background:var(--c-accent);color:#fff;font-weight:700}
+.pal{display:flex;gap:5px;flex-wrap:wrap}
+.pal button{width:19px;height:19px;border-radius:3px;border:1px solid rgba(0,0,0,.25);cursor:pointer;padding:0}
+.pal button.on{box-shadow:0 0 0 2px var(--c-paper),0 0 0 3.5px var(--c-accent-2)}
+.insp-act{display:flex;gap:7px;margin-top:10px}
+.mini{flex:1 1 auto;padding:5px 8px;border-radius:3px;border:1px solid var(--c-line-mid);background:var(--c-field);cursor:pointer;font-size:11.5px}
+.mini:hover{background:var(--c-accent-soft);border-color:var(--c-accent)}
+.mini.danger:hover{border-color:var(--c-actual);color:var(--c-actual)}
+
+/* ---------- modal ---------- */
+.veil{position:fixed;inset:0;background:rgba(10,16,22,.55);z-index:90;display:none;align-items:center;justify-content:center;padding:24px}
+.veil.show{display:flex}
+.modal{background:var(--c-paper);border:1px solid var(--c-line-mid);border-radius:5px;width:min(780px,100%);max-height:88vh;overflow:auto;
+  padding:18px 20px 20px;box-shadow:0 24px 60px -20px rgba(0,0,0,.5)}
+.modal h2{margin:0 0 4px;font-family:var(--f-disp);font-size:16px;letter-spacing:.1em}
+.modal p{margin:0 0 12px;color:var(--c-text-2);font-size:12px}
+.modal textarea{width:100%;height:180px;font-family:var(--f-mono);font-size:11px;background:var(--c-field);color:var(--c-text);
+  border:1px solid var(--c-line-mid);border-radius:3px;padding:8px}
+.modal .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.modal label.opt{display:flex;align-items:center;gap:7px;padding:6px 9px;border:1px solid var(--c-line-mid);border-radius:3px;cursor:pointer;font-size:12.5px}
+.modal label.opt:hover{background:var(--c-accent-soft)}
+.modal kbd{font-family:var(--f-mono);font-size:10.5px;background:var(--c-field);border:1px solid var(--c-line-mid);border-bottom-width:2px;border-radius:3px;padding:1px 5px}
+.help-grid{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;align-items:baseline;font-size:12.5px}
+.help-grid dt{white-space:nowrap}
+.help-grid dd{margin:0;color:var(--c-text-2)}
+.help-sec{margin:14px 0 6px;font-family:var(--f-disp);font-weight:700;font-size:12px;letter-spacing:.14em;color:var(--c-accent);border-bottom:1px solid var(--c-line);padding-bottom:4px}
+.kanri{padding:14px 18px 90px}
+.kbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.kbar b{font-family:var(--f-disp);font-size:14px;letter-spacing:.12em}
+.kbar .mini{flex:0 0 auto;padding:5px 10px}
+.knote{font-size:11.5px;color:var(--c-text-2);font-family:var(--f-mono)}
+.knote2{margin-top:8px;font-size:11.5px;color:var(--c-text-2)}
+.kwrap{overflow:auto;max-height:calc(100vh - 210px);border:1px solid var(--c-line-strong);background:var(--c-paper)}
+table.kt{border-collapse:separate;border-spacing:0;font-size:11.5px;white-space:nowrap}
+table.kt th,table.kt td{border-right:1px solid var(--c-line);border-bottom:1px solid var(--c-line);padding:2px 5px;background:var(--c-paper)}
+table.kt thead th{position:sticky;top:0;z-index:3;background:var(--c-paper-2);font-weight:700;font-size:10.5px;text-align:center}
+table.kt thead tr:nth-child(2) th{top:24px}
+table.kt th.f0,table.kt td.f0{position:sticky;left:0;z-index:2}
+table.kt th.f1,table.kt td.f1,table.kt th.f2,table.kt td.f2,table.kt th.f3,table.kt td.f3,table.kt th.f4,table.kt td.f4,table.kt th.f5,table.kt td.f5{position:sticky;z-index:2}
+table.kt thead th.f0,table.kt thead th.f1,table.kt thead th.f2,table.kt thead th.f3,table.kt thead th.f4,table.kt thead th.f5{z-index:5}
+table.kt td.resid{text-align:right;font-family:var(--f-mono)}
+table.kt td.num{text-align:right;font-family:var(--f-mono)}
+table.kt td.grp{font-weight:700}
+table.kt input{border:0;background:transparent;font:inherit;padding:1px 2px;min-width:0}
+table.kt input.g{width:96px} table.kt input.n{width:176px} table.kt input.k{width:92px} table.kt input.u{width:32px}
+table.kt tbody tr:hover td{background:var(--c-accent-soft)}
+table.kt tr.spacer td{height:40px;border:0;background:transparent}
+table.kt tfoot td.over{color:var(--c-actual)}
+table.kt tr.autorow td{background:var(--c-accent-soft)}
+table.kt td.auto{text-align:right;font-family:var(--f-mono);color:var(--c-text-2);padding-right:6px}
+table.kt .autoq{display:inline-block;width:100%;text-align:right;font-family:var(--f-mono);color:var(--c-text-2)}
+table.kt input:focus{outline:0;background:var(--c-field-focus);box-shadow:inset 0 0 0 1px var(--c-accent)}
+table.kt input.q{text-align:right;font-family:var(--f-mono);width:58px}
+table.kt input.w{text-align:right;font-family:var(--f-mono);width:46px}
+table.kt input.w.p{color:var(--c-plan)} table.kt input.w.a{color:var(--c-actual)}
+table.kt td.wp{background:var(--c-paper)} table.kt td.wa{background:var(--c-field)}
+table.kt tfoot td{position:sticky;bottom:0;background:var(--c-paper-2);font-family:var(--f-mono);text-align:right;font-weight:600;z-index:2}
+table.kt tfoot td.f0,table.kt tfoot td.f1,table.kt tfoot td.f2,table.kt tfoot td.f3,table.kt tfoot td.f4,table.kt tfoot td.f5{z-index:4;text-align:left;font-family:var(--f-body)}
+table.kt .del{width:16px;border:0;background:transparent;color:var(--c-text-3);cursor:pointer}
+table.kt .del:hover{color:var(--c-actual)}
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);z-index:120;background:var(--c-chrome);color:var(--c-chrome-t);
+  border:1px solid var(--c-chrome-line);padding:8px 16px;border-radius:3px;font-size:12px;opacity:0;pointer-events:none;transition:opacity .18s,transform .18s}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* 印刷寸法の実測用（1フレーム内で付け外し） */
+.measuring .sheet{width:max-content;max-width:none!important;padding:0!important;gap:7px!important;border:0!important;box-shadow:none!important}
+.measuring .board{grid-template-columns:var(--leftw) max-content}
+.measuring .board-right{overflow:visible!important}
+.measuring .addrow,.measuring .rowpad,.measuring .noprint{display:none!important}
+.measuring .board{overflow:visible!important;max-height:none!important;height:auto!important}
+.measuring .q00,.measuring .q01,.measuring .q10{position:relative!important;top:auto!important;left:auto!important}
+.measuring .inp,.measuring .dash,.measuring .unit{display:none!important}
+.measuring .pv{display:block}
+
+/* ============================================================
+   PRINT — A3/A4 横 1枚
+   ============================================================ */
+@media print{
+  :root{
+    --c-stage:#FFF;--c-paper:#FFF;--c-paper-2:#F6F8FB;--c-edge:#8E9AAB;
+    --c-line:#DCE2EA;--c-line-mid:#B9C3D0;--c-line-strong:#5F6C7D;
+    --c-text:#0E151E;--c-text-2:#465264;--c-text-3:#78859A;
+    --c-field:#FFF;--c-field-focus:#FFF;--c-accent:#1D4E7C;--c-accent-soft:#EBF1F8;
+    --c-sat:#2A657F;--c-sun:#A93C38;--c-sat-a:.16;--c-sun-a:.16;--c-satw-a:.07;--c-insp:#9C7223;
+    --c-bar:#000000;--c-plan:#000000;--c-actual:#C1272D;--c-band:#2F6094;
+    color-scheme:light;
+  }
+  html,body{background:#fff!important;margin:0;padding:0}
+  .chrome,.kanri,.inspector,.veil,.toast,.xbtn,.addrow,.rowpad,.grip,.noprint{display:none!important}
+  .stage{padding:0;display:block;max-height:100vh;overflow:hidden}
+  .print-wrap{overflow:hidden}
+  .sheet{width:max-content;max-width:none!important;border:0;box-shadow:none;padding:0;gap:7px;transform-origin:top left}
+  .board{overflow:visible!important;max-height:none!important;height:auto!important}
+  .q00,.q01,.q10{position:relative!important;top:auto!important;left:auto!important}
+  .tl-body .bar,.tl-body .btext{display:none!important}
+  #bgSvg .pbars{display:inline!important}
+  .inp,.dash,.unit{display:none!important}
+  .pv{display:block}
+  input[type=date]::-webkit-calendar-picker-indicator{display:none}
+  input::placeholder{color:transparent}
+  .lrow:hover,.track:hover{background:transparent}
+  .rname,.rwt,.mi{border:0!important;background:transparent!important;box-shadow:none!important}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .sheet,.board,.binner,.tlmain,.tl-head,.tl-body,.tl-curve,.mtab,.lrow,.track{break-inside:avoid;page-break-inside:avoid}
+}
+</style>
+
+<div class="app">
+  <header class="chrome">
+    <div class="brand"><b>工事工程管理表</b></div>
+
+    <div class="grp">
+      <label>画面</label>
+      <button class="btn" id="zoomOut" title="画面を縮小">−</button>
+      <span class="hint" id="zoomVal" style="min-width:38px;text-align:center">100%</span>
+      <button class="btn" id="zoomIn" title="画面を拡大">＋</button>
+      <button class="btn ghost" id="zoomReset" title="等倍に戻す">100%</button>
+    </div>
+
+    <div class="grp">
+      <label>表示幅</label>
+      <input type="range" id="zoom" min="3" max="34" step="1" value="10">
+      <button class="btn ghost" id="btnFit" title="工期全体を画面幅に合わせる">フィット</button>
+    </div>
+
+    <div class="grp">
+      <button class="btn" id="btnUndo" title="元に戻す（Ctrl+Z）">↩ 戻す</button>
+      <button class="btn" id="btnRedo" title="やり直す（Ctrl+Y）">↪ やり直す</button>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="grp">
+      <div class="seg" id="segView">
+        <button class="btn" data-view="chart">工程表</button>
+        <button class="btn" data-view="kanri">工程管理表</button>
+      </div>
+      <button class="btn" id="btnMenu">設定</button>
+      <button class="btn primary" id="btnPrint">PDF出力 / 印刷</button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <div class="print-wrap" id="printWrap" style="width:100%">
+    <section class="sheet" id="sheet">
+
+      <div class="sheet-head">
+        <h1>工　事　工　程　表</h1>
+      </div>
+
+      <div class="info">
+        <div class="fld"><div class="lb">工事名</div><div class="vl"><input class="inp big" id="mName" placeholder="○○川河川改修工事"><span class="pv big" id="pvName"></span></div></div>
+        <div class="fld"><div class="lb">発注者</div><div class="vl"><input class="inp" id="mOwner" placeholder="○○県○○土木事務所"><span class="pv" id="pvOwner"></span></div></div>
+        <div class="fld"><div class="lb">施工者</div><div class="vl"><input class="inp" id="mContractor" placeholder="○○建設株式会社"><span class="pv" id="pvContractor"></span></div></div>
+        <div class="fld"><div class="lb">工期</div><div class="vl">
+          <input class="inp date" type="date" id="mStart"><span class="dash">〜</span><input class="inp date" type="date" id="mEnd">
+          <span class="pv date" id="pvTerm"></span>
+          <span class="unit">／検査</span><input class="inp n" type="number" id="mInspect" min="0" max="120" step="1"><span class="unit" id="uInspect">日</span>
+          <span class="days-badge" id="dayCount"></span>
+        </div></div>
+      </div>
+
+      <div class="board" id="board">
+        <div class="binner" id="binner">
+          <div class="lh q00"><div class="t1">工　種</div><div class="t2">比率 %</div></div>
+          <div class="tl-head q01" id="tlHead"><svg class="bgsvg" id="bgSvgHead" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg><div class="hlayer" id="hLayer"></div></div>
+          <div class="q10" id="lBody">
+            <div id="leftRows"></div>
+            <button class="addrow" id="addRowInline">＋ 工種を追加</button>
+            <div class="laxis" id="laxis">
+              <div class="cap">出来高曲線</div>
+              <div class="lgd" id="curveLegend"></div>
+            </div>
+            <div class="lmtab">
+              <div class="lmrow p"><span class="tag">予定</span><b>累計出来高 %</b></div>
+              <div class="lmrow a"><span class="tag">実績</span><b>累計出来高 %</b></div>
+            </div>
+            <div class="lwtab noprint">
+              <div class="lwrow">週ごとの入力（印刷されません）</div>
+              <div class="lwrow p"><span class="tag">予定</span><b>週末 累計 %</b></div>
+              <div class="lwrow a"><span class="tag">実績</span><b>週末 累計 %</b></div>
+            </div>
+          </div>
+          <div class="q11" id="rBody">
+            <div class="tlmain" id="tlMain">
+              <svg class="bgsvg" id="bgSvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg>
+              <div class="tl-body" id="tlBody"></div>
+              <div class="rowpad"></div>
+              <div class="tl-curve" id="tlCurve"><svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg></div>
+            </div>
+            <div class="mtab" id="mtab"></div>
+            <div class="wtab noprint" id="wtab"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sheet-foot">
+        <div class="legend" id="footLegend"></div>
+      </div>
+
+    </section>
+    </div>
+  </div>
+
+  <aside class="inspector" id="inspector">
+    <div class="insp-h"><b id="inspTitle">工程線</b><button class="xbtn" id="inspClose" style="opacity:1">×</button></div>
+    <div id="inspBar">
+      <div class="insp-row"><label>開始</label><input type="date" id="ibStart"></div>
+      <div class="insp-row"><label>終了</label><input type="date" id="ibEnd"></div>
+      <div class="insp-act">
+        <button class="mini" id="ibCopy">実績へコピー</button>
+        <button class="mini" id="ibDup">複製</button>
+        <button class="mini danger" id="ibDel">削除</button>
+      </div>
+    </div>
+    <div id="inspText" style="display:none">
+      <div class="insp-row"><label>文字</label><input type="text" id="itText" placeholder="作業内容"></div>
+      <div class="insp-row"><label>日付</label><input type="date" id="itDate"></div>
+      <div class="insp-row"><label>段</label><div class="seg2" id="itBand"><button data-b="plan">予定（黒）</button><button data-b="act">実績（赤）</button></div></div>
+      <div class="insp-row"><label>寄せ</label><div class="seg2" id="itAlign"><button data-a="left">左</button><button data-a="center">中</button><button data-a="right">右</button></div></div>
+      <div class="insp-act"><button class="mini" id="itDup">複製</button><button class="mini danger" id="itDel">削除</button></div>
+    </div>
+  </aside>
+
+  <section class="kanri" id="kanri" style="display:none">
+    <div class="kbar">
+      <b>工程管理表</b>
+      <span class="knote" id="kSum"></span>
+      <span class="spacer"></span>
+      <button class="mini" id="kUndo" style="flex:0 0 auto">↩ 戻す</button>
+      <button class="mini" id="kRedo" style="flex:0 0 auto">↪ やり直す</button>
+      <button class="mini" id="kAdd">＋ 明細を追加</button>
+      <button class="mini danger" id="kClear">明細を全消去</button>
+    </div>
+    <div class="kwrap" id="kwrap"></div>
+    <div class="knote2">数量を入れると、工程表の工種・比率・予定線／実績線・出来高カーブに自動で反映されます（この表は印刷されません）。反映された線の上には、工程表画面で自由に作業内容の文字を書き込めます。</div>
+  </section>
+
+  <div class="veil" id="veil"><div class="modal" id="modal"></div></div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(function(){
+"use strict";
+/* ============================================================ utils */
+const $ = s => document.querySelector(s);
+const el = (t,c,h) => { const n=document.createElement(t); if(c)n.className=c; if(h!=null)n.innerHTML=h; return n; };
+const MS=86400000, pad=n=>String(n).padStart(2,'0');
+const iso = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parse = s => { const p=String(s||'').split('-').map(Number); return new Date(p[0],(p[1]||1)-1,p[2]||1); };
+const addDays=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
+const diffDays=(a,b)=>Math.round((new Date(b.getFullYear(),b.getMonth(),b.getDate())-new Date(a.getFullYear(),a.getMonth(),a.getDate()))/MS);
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+const uid=()=>Math.random().toString(36).slice(2,9);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const DOW=['日','月','火','水','木','金','土'];
+
+/* ---------- 日本の祝日（1980-2099） ---------- */
+const holidayCache={};
+function nthMonday(y,m,n){ const d=new Date(y,m-1,1); return new Date(y,m-1,1+((8-d.getDay())%7)+(n-1)*7); }
+function holidaysOf(y){
+  if(holidayCache[y]) return holidayCache[y];
+  const H={}, put=(d,n)=>{H[iso(d)]=n;};
+  put(new Date(y,0,1),'元日'); put(nthMonday(y,1,2),'成人の日');
+  put(new Date(y,1,11),'建国記念の日'); if(y>=2020) put(new Date(y,1,23),'天皇誕生日');
+  put(new Date(y,2,Math.floor(20.8431+0.242194*(y-1980)-Math.floor((y-1980)/4))),'春分の日');
+  put(new Date(y,3,29), y>=2007?'昭和の日':'みどりの日');
+  put(new Date(y,4,3),'憲法記念日'); put(new Date(y,4,4), y>=2007?'みどりの日':'国民の休日'); put(new Date(y,4,5),'こどもの日');
+  put(y>=2003?nthMonday(y,7,3):new Date(y,6,20),'海の日');
+  if(y>=2016) put(new Date(y,7,11),'山の日');
+  put(nthMonday(y,9,3),'敬老の日');
+  put(new Date(y,8,Math.floor(23.2488+0.242194*(y-1980)-Math.floor((y-1980)/4))),'秋分の日');
+  put(nthMonday(y,10,2), y>=2020?'スポーツの日':'体育の日');
+  put(new Date(y,10,3),'文化の日'); put(new Date(y,10,23),'勤労感謝の日');
+  if(y<2019) put(new Date(y,11,23),'天皇誕生日');
+  Object.keys(H).slice().forEach(k=>{ const d=parse(k),d1=addDays(d,1),d2=addDays(d,2);
+    if(H[iso(d2)] && !H[iso(d1)] && d1.getDay()!==0) H[iso(d1)]='国民の休日'; });
+  Object.keys(H).slice().forEach(k=>{ const d=parse(k);
+    if(d.getDay()===0){ let n=addDays(d,1); while(H[iso(n)]) n=addDays(n,1); H[iso(n)]='振替休日'; } });
+  holidayCache[y]=H; return H;
+}
+const holidayName = d => holidaysOf(d.getFullYear())[iso(d)]||null;
+
+/* ============================================================ state */
+const PALETTE=['#2F6F8F','#B4693B','#6B8E3E','#7C63A8','#B08A2E','#3F9184','#A8496A','#5A6B7A'];
+const PRESET=[['準備工・調査',4],['共通仮設工',6],['仮設工',7],['構造物撤去工',5],['河川土工',14],['築堤・護岸工',18],
+  ['法面工',8],['擁壁工',10],['排水構造物工',7],['舗装工',9],['付属物設置工',4],['後片付け',2],['現場管理費',4],['一般管理費',2]];
+/* 2026年度 現場休日カレンダー（日曜を除く指定休日） */
+const CAL2026=['2026-04-11','2026-04-25','2026-04-29','2026-05-04','2026-05-05','2026-05-06','2026-05-23','2026-06-13','2026-06-27',
+'2026-07-11','2026-07-20','2026-07-25','2026-08-11','2026-08-12','2026-08-13','2026-08-14','2026-08-15','2026-09-12','2026-09-21',
+'2026-09-22','2026-09-23','2026-09-26','2026-10-10','2026-10-12','2026-10-24','2026-11-03','2026-11-14','2026-11-23','2026-11-28',
+'2026-12-12','2026-12-29','2026-12-30','2026-12-31','2027-01-01','2027-01-02','2027-01-04','2027-01-05','2027-01-11','2027-01-23',
+'2027-02-11','2027-02-13','2027-02-23','2027-02-27','2027-03-06','2027-03-20','2027-03-22'];
+
+const today=new Date();
+const state={
+  meta:{ name:'', owner:'', contractor:'筒賀建設株式会社',
+    start: iso(new Date(today.getFullYear(),today.getMonth(),1)),
+    end:   iso(new Date(today.getFullYear(),today.getMonth()+6,0)),
+    inspect:14 },
+  cal:{ base:'sun', jp:true, off:(()=>{const o={};CAL2026.forEach(k=>o[k]=1);return o;})(), work:{} },
+  rows:[], actual:{}, wplan:{}, wact:{}, texts:[], items:[], iplan:{}, iact:{},
+  opts:{ cw:10, shape:'s', workday:true, paper:'A3', unit:'week', band:true, bandPct:10, zoom:1, font:'gothic', fontScale:1, view:'chart' }
+};
+let days=[], segs=[], sel=null, selText=null, dragging=null, rowDrag=null;
+const FONTS={
+  gothic:['ゴシック体','"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif'],
+  mincho:['明朝体','"Noto Serif JP","Hiragino Mincho ProN","Yu Mincho","MS PMincho",serif'],
+  maru:['丸ゴシック','"Zen Maru Gothic","Hiragino Maru Gothic ProN","M PLUS Rounded 1c","Noto Sans JP",sans-serif'],
+  sys:['標準（端末の書体）','"Yu Gothic","Hiragino Kaku Gothic ProN",Meiryo,sans-serif']
+};
+function applyFont(){
+  const f=FONTS[state.opts.font]||FONTS.gothic;
+  document.documentElement.style.setProperty('--f-sheet',f[1]);
+  document.documentElement.style.setProperty('--note-fs',(9*(state.opts.fontScale||1)).toFixed(1)+'px');
+}
+function forceFixedOpts(){
+  state.opts.shape='s'; state.opts.workday=true; state.opts.unit='week';
+  state.opts.band=true; state.opts.bandPct=10; state.opts.paper='A3';
+}
+
+const totalDays = () => Math.max(1, diffDays(parse(state.meta.start), parse(state.meta.end))+1);
+const workEndIdx = () => clamp(totalDays()-1-(Number(state.meta.inspect)||0), 0, totalDays()-1);
+
+function seed(){
+  state.rows = PRESET.map((p,i)=>({id:uid(),name:p[0],weight:p[1],color:PALETTE[i%PALETTE.length],tasks:[],acts:[]}));
+  const n = workEndIdx()+1, S=parse(state.meta.start);
+  [[0,.00,.06],[1,.00,1],[2,.02,.18],[3,.06,.24],[4,.14,.46],[5,.18,.70],[6,.44,.64],[7,.40,.68],
+   [8,.58,.78],[9,.70,.90],[10,.84,.95],[11,.94,1],[12,0,1],[13,0,1]].forEach(p=>{
+    const r=state.rows[p[0]]; if(!r) return;
+    const s=Math.floor(n*p[1]), e=Math.max(s,Math.floor(n*p[2])-1);
+    r.tasks.push({id:uid(), s:iso(addDays(S,s)), e:iso(addDays(S,Math.min(e,n-1))), label:''});
+  });
+}
+
+/* ---------- 休日判定 ---------- */
+function ruleOff(d){
+  const w=d.getDay();
+  if(w===0) return true;
+  if(state.cal.base==='satsun' && w===6) return true;
+  if(state.cal.base==='biweekly' && w===6){ const nth=Math.floor((d.getDate()-1)/7)+1; if(nth===2||nth===4) return true; }
+  if(state.cal.jp && holidayName(d)) return true;
+  return false;
+}
+function isOff(d){
+  const k=iso(d);
+  if(state.cal.work[k]) return false;
+  if(state.cal.off[k]) return true;
+  return ruleOff(d);
+}
+function toggleDay(k){
+  const d=parse(k);
+  if(state.cal.work[k]) delete state.cal.work[k];
+  else if(state.cal.off[k]) delete state.cal.off[k];
+  else if(ruleOff(d)) state.cal.work[k]=1;
+  else state.cal.off[k]=1;
+}
+
+function buildDays(){
+  const S=parse(state.meta.start), n=totalDays(), we=workEndIdx();
+  days=[];
+  for(let i=0;i<n;i++){
+    const d=addDays(S,i), k=iso(d), w=d.getDay(), hn=holidayName(d), off=isOff(d);
+    const tone = off ? 'sun' : '';
+    days.push({i,d,iso:k,dow:w,tone,off,hol:hn,inspect:i>we});
+  }
+  segs=[]; let i=0;
+  while(i<days.length){
+    let j=i;
+    while(j+1<days.length && days[j+1].d.getMonth()===days[i].d.getMonth() && days[j+1].d.getFullYear()===days[i].d.getFullYear()) j++;
+    const dt=days[i].d;
+    segs.push({i0:i,i1:j,key:dt.getFullYear()+'-'+pad(dt.getMonth()+1),y:dt.getFullYear(),m:dt.getMonth()+1});
+    i=j+1;
+  }
+}
+function mondayOf(d){ const w=(d.getDay()+6)%7; return addDays(d,-w); }
+function periods(){
+  if(state.opts.unit==='month') return segs.map(g=>({i0:g.i0,i1:g.i1,key:g.key,label:g.m+'月'}));
+  const out=[]; let cur=null;
+  days.forEach(d=>{
+    const k='W'+iso(mondayOf(d.d));
+    if(!cur||cur.key!==k){ cur={i0:d.i,i1:d.i,key:k,label:(d.d.getMonth()+1)+'/'+d.d.getDate()}; out.push(cur); }
+    else cur.i1=d.i;
+  });
+  return out;
+}
+const idxOf = ds => diffDays(parse(state.meta.start), parse(ds));
+const dateOf = i => iso(addDays(parse(state.meta.start), i));
+const W = () => days.length*state.opts.cw;
+
+/* ---------- Sカーブ ---------- */
+function computeCurve(){
+  const n=days.length, daily=new Array(n).fill(0);
+  const total=state.rows.reduce((s,r)=>s+(Number(r.weight)||0),0);
+  if(total>0){
+    const shape = state.opts.shape==='s' ? (x=>x*x*(3-2*x)) : (x=>x);
+    state.rows.forEach(r=>{
+      const w=(Number(r.weight)||0)/total;
+      if(!w||!r.tasks.length) return;
+      const segsL=r.tasks.map(t=>{
+        let a=clamp(idxOf(t.s),0,n-1), b=clamp(idxOf(t.e),0,n-1);
+        if(b<a){const x=a;a=b;b=x;}
+        const list=[];
+        for(let i=a;i<=b;i++) if(!state.opts.workday || !days[i].off) list.push(i);
+        if(!list.length) for(let i=a;i<=b;i++) list.push(i);
+        return list;
+      });
+      const grand=segsL.reduce((s,l)=>s+l.length,0)||1;
+      segsL.forEach(list=>{
+        const share=w*(list.length/grand), m=list.length;
+        list.forEach((di,k)=>{ daily[di]+=share*(shape((k+1)/m)-shape(k/m)); });
+      });
+    });
+  }
+  const cum=new Array(n).fill(0); let acc=0;
+  for(let i=0;i<n;i++){ acc+=daily[i]; cum[i]=acc*100; }
+  return cum;
+}
+
+/* ============================================================ render */
+function setVars(){
+  document.documentElement.style.setProperty('--cw', state.opts.cw+'px');
+  const w=W()+'px';
+  $('#tlHead').style.width=w; $('#rBody').style.width=w;
+}
+
+/* 休日・検査期間・グリッドをSVGで（背景色OFFでも印刷される） */
+function renderBG(){
+  const cw=state.opts.cw, w=W();
+  let s='';
+  // 休日
+  days.forEach(d=>{
+    if(!d.tone) return;
+    const c='var(--c-sun)', a='var(--c-sun-a)';
+    s+='<rect x="'+(d.i*cw).toFixed(2)+'" y="0" width="'+cw.toFixed(2)+'" height="100%" fill="'+c+'" fill-opacity="'+a+'"/>';
+  });
+  // 検査期間
+  const we=workEndIdx();
+  if(we < days.length-1){
+    const x=(we+1)*cw;
+    s+='<rect x="'+x.toFixed(2)+'" y="0" width="'+(w-x).toFixed(2)+'" height="100%" fill="var(--c-insp)" fill-opacity=".13"/>';
+    s+='<line x1="'+x.toFixed(2)+'" y1="0" x2="'+x.toFixed(2)+'" y2="100%" stroke="var(--c-insp)" stroke-width="1.4" stroke-dasharray="5 3"/>';
+  }
+  // 日／週の細線
+  if(cw>=5){ for(let i=1;i<days.length;i++) s+='<line x1="'+(i*cw).toFixed(2)+'" y1="0" x2="'+(i*cw).toFixed(2)+'" y2="100%" stroke="var(--c-line)" stroke-width="1"/>'; }
+  else { days.forEach(d=>{ if(d.dow===1&&d.i>0) s+='<line x1="'+(d.i*cw).toFixed(2)+'" y1="0" x2="'+(d.i*cw).toFixed(2)+'" y2="100%" stroke="var(--c-line)" stroke-width="1"/>'; }); }
+  // 月境界
+  segs.forEach(g=>{ if(g.i0>0) s+='<line x1="'+(g.i0*cw).toFixed(2)+'" y1="0" x2="'+(g.i0*cw).toFixed(2)+'" y2="100%" stroke="var(--c-line-strong)" stroke-width="1"/>'; });
+  [$('#bgSvg'),$('#bgSvgHead')].forEach(svg=>{ svg.setAttribute('width',w); svg.innerHTML=s; });
+}
+
+function renderHead(){
+  const h=$('#hLayer'), cw=state.opts.cw;
+  h.innerHTML='';
+  const frag=document.createDocumentFragment();
+  segs.forEach(g=>{
+    const span=(g.i1-g.i0+1)*cw, m=el('div','mo');
+    m.style.left=(g.i0*cw)+'px'; m.style.width=span+'px';
+    m.textContent = span>=76 ? (g.y+'年 '+g.m+'月') : (span>=34 ? g.m+'月' : g.m);
+    m.title=g.y+'年'+g.m+'月';
+    frag.appendChild(m);
+  });
+  const step = cw>=15?1:(cw>=9?5:10), showDow = cw>=13;
+  const weI=workEndIdx(), bandLabel=(weI<days.length-1)&&((W()-(weI+1)*cw)>52);
+  days.forEach(d=>{
+    const n=d.d.getDate(), show = (step===1 ? true : (n%step===0)) && !(bandLabel&&d.inspect);
+    if(show){
+      const c=el('div','dn'+(d.tone==='sun'?' off':(d.tone?' sat':'')));
+      c.style.left=(d.i*cw)+'px'; c.style.width=cw+'px'; c.textContent=n;
+      if(d.hol) c.title=d.hol; frag.appendChild(c);
+    }
+    if(showDow){
+      const c=el('div','dw'+(d.tone==='sun'?' off':(d.tone?' sat':'')));
+      c.style.left=(d.i*cw)+'px'; c.style.width=cw+'px'; c.textContent=DOW[d.dow];
+      frag.appendChild(c);
+    }
+  });
+  const we=workEndIdx();
+  if(we<days.length-1){
+    const x=(we+1)*cw, wd=W()-x;
+    if(wd>52){ const b=el('div','inspband','検査期間'); b.style.left=x+'px'; b.style.width=wd+'px'; frag.appendChild(b); }
+  }
+  h.appendChild(frag);
+  document.documentElement.style.setProperty('--h-dow', showDow?'16px':'2px');
+}
+
+function textW(str,fs){
+  let w=0; for(const ch of String(str||'')) w += (ch.charCodeAt(0)>0x2E7F?1:0.56);
+  return w*fs;
+}
+const ALIGN={left:'al',center:'ac',right:'ar'};
+function textW(str,fs){ let w=0; for(const ch of String(str||'')) w += (ch.charCodeAt(0)>0x2E7F?1:0.56); return w*fs; }
+function noteFS(){ return (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--note-fs'))||9); }
+/* 端で切れないように寄せ方を自動調整 */
+function effAlign(x,txt,align,fs){
+  const w=textW(txt,fs), tot=W();
+  let al=align||'center';
+  if(al==='left' && x+w>tot-2) al='right';
+  if(al==='center'){ if(x-w/2<2) al='left'; else if(x+w/2>tot-2) al='right'; }
+  if(al==='right' && x-w<2) al='left';
+  return al;
+}
+function migrateNotes(){
+  (state.rows||[]).forEach(r=>{
+    [['tasks','plan'],['acts','act']].forEach(([k,band])=>{
+      (r[k]||[]).forEach(t=>{
+        if(t.notes && t.notes.length){
+          t.notes.forEach(o=> state.texts.push({id:uid(),row:r.id,at:o.at,band:band,text:o.text,align:o.align||'center'}));
+        }else if(t.label){
+          state.texts.push({id:uid(),row:r.id,at:t.s,band:band,text:t.label,align:t.align||'center'});
+        }
+        delete t.notes; delete t.label; delete t.align;
+      });
+    });
+  });
+}
+function barEl(row,t,kind){
+  const cw=state.opts.cw;
+  let a=idxOf(t.s), b=idxOf(t.e); if(b<a){const x=a;a=b;b=x;}
+  if(b<0 || a>days.length-1) return null;
+  a=clamp(a,0,days.length-1); b=clamp(b,0,days.length-1);
+  const left=a*cw, w=Math.max(3,(b-a+1)*cw);
+  const n=el('div','bar '+kind+((sel&&sel.t===t)?' sel':''));
+  n.style.left=left+'px'; n.style.width=w+'px';
+  n.dataset.row=row.id; n.dataset.task=t.id; n.dataset.kind=kind;
+  n.innerHTML='<div class="hd l"></div><div class="ln"></div><span class="ep l"></span><span class="ep r"></span><div class="hd r"></div>';
+  n.title=(kind==='act'?'【実績】':'【予定】')+t.s+' 〜 '+t.e+'（'+(b-a+1)+'日）';
+  return n;
+}
+function textEl(tx){
+  const cw=state.opts.cw, fs=noteFS();
+  const x=clamp(idxOf(tx.at),0,days.length-1)*cw + cw/2;
+  const al=effAlign(x,tx.text,tx.align,fs);
+  const n=el('div','btext '+(tx.band==='act'?'act':'plan')+' '+ALIGN[al]+((selText&&selText.id===tx.id)?' sel':''));
+  n.style.left=x+'px'; n.textContent=tx.text;
+  n.dataset.text=tx.id; n.dataset.row=tx.row;
+  n.title=tx.at.replace(/-/g,'/')+'  '+tx.text;
+  return n;
+}
+function renderRows(){
+  const L=$('#leftRows'), B=$('#tlBody');
+  L.innerHTML=''; B.innerHTML='';
+  const total=state.rows.reduce((s,r)=>s+(Number(r.weight)||0),0);
+  const lf=document.createDocumentFragment(), bf=document.createDocumentFragment();
+  state.rows.forEach((r,ri)=>{
+    const lr=el('div','lrow'+((sel&&sel.row===r)?' sel':'')); lr.dataset.row=r.id;
+    const g=el('div','grip','≡'); g.title='ドラッグで並び替え';
+    const nm=el('input','rname'); nm.value=r.name; nm.placeholder='工種名';
+    const wt=el('input','rwt'); wt.type='number'; wt.min='0'; wt.step='0.5'; wt.value=r.weight;
+    wt.title = total? '構成比 '+((r.weight/total)*100).toFixed(1)+'%':'出来高比率';
+    const xb=el('button','xbtn','×'); xb.title='この工種を削除';
+    nm.addEventListener('input',()=>{ r.name=nm.value; save(); });
+    wt.addEventListener('input',()=>{ r.weight=Number(wt.value)||0; renderCurve(); renderMTab(); updateHint(); save(); });
+    xb.addEventListener('click',()=>{ if(state.rows.length<=1) return; state.rows.splice(ri,1); sel=null; render(); save(); });
+    g.addEventListener('mousedown',e=>startRowDrag(e,ri));
+    lr.append(g,nm,wt,el('span','pct','%'),xb);
+    lf.appendChild(lr);
+
+    const tr=el('div','track'); tr.dataset.row=r.id;
+    r.tasks.forEach(t=>{const n=barEl(r,t,'plan'); if(n) tr.appendChild(n);});
+    (r.acts||[]).forEach(t=>{const n=barEl(r,t,'act'); if(n) tr.appendChild(n);});
+    state.texts.filter(x=>x.row===r.id).forEach(x=>tr.appendChild(textEl(x)));
+    bf.appendChild(tr);
+  });
+  L.appendChild(lf); B.appendChild(bf);
+}
+
+function curveGeom(){
+  const h=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--curveh'))||150;
+  const padT=15,padB=15;
+  return {h, y:p=>padT+(h-padT-padB)*(1-clamp(p,0,100)/100)};
+}
+/* 週ごとの点（予定＝自動値または手入力、実績＝手入力） */
+function weekPoints(){
+  const cum=computeCurve(), der=derivedWeekly();
+  return periods().map((g,k)=>{
+    const auto=cum[g.i1]||0;
+    const d=der?der.map[g.key]:null;
+    const dp=(d&&der.anyP)?d.plan:null;
+    const da=(d&&der.lastA>=0&&k<=der.lastA)?d.act:null;
+    const pv=state.wplan[g.key], av=state.wact[g.key];
+    return {i:g.i1, i0:g.i0, key:g.key, label:g.label, auto:(dp!=null?dp:auto),
+      plan:(pv!=null&&pv!=='')?Number(pv):(dp!=null?dp:auto),
+      act:(av!=null&&av!=='')?Number(av):da};
+  });
+}
+/* 指定日における折れ線の値（線形補間） */
+function valueAt(pts,dayIdx,field){
+  const list=pts.filter(p=>p[field]!=null);
+  if(!list.length) return null;
+  if(dayIdx<list[0].i) return (field==='plan')? interp(0,-1,list[0].i,list[0][field],dayIdx) : null;
+  if(dayIdx>list[list.length-1].i && field!=='plan') return null;
+  let prev=list[0];
+  for(const p of list){
+    if(p.i===dayIdx) return p[field];
+    if(p.i>dayIdx) return interp(prev[field],prev.i,p.i,p[field],dayIdx);
+    prev=p;
+  }
+  return prev[field];
+}
+function interp(v0,i0,i1,v1,x){ if(i1===i0) return v1; return v0+(v1-v0)*((x-i0)/(i1-i0)); }
+function renderCurve(){
+  const cw=state.opts.cw, w=W(), G=curveGeom(), y=G.y, h=G.h;
+  const pts=weekPoints();
+  const svg=$('#svg'); svg.setAttribute('width',w); svg.setAttribute('height',h); svg.setAttribute('viewBox','0 0 '+w+' '+h);
+  let s='';
+  [0,25,50,75,100].forEach(p=>{ s+='<line x1="0" y1="'+y(p).toFixed(1)+'" x2="'+w+'" y2="'+y(p).toFixed(1)+'" stroke="var(--c-line'+((p===0||p===100)?'-mid':'')+')" stroke-width="1"/>'; });
+  segs.forEach(g=>{ if(g.i0>0) s+='<line x1="'+(g.i0*cw)+'" y1="0" x2="'+(g.i0*cw)+'" y2="'+h+'" stroke="var(--c-line-strong)" stroke-width="1" opacity=".5"/>'; });
+
+  // 上下限（前後10%ずらし）
+  if(state.opts.band && state.opts.bandPct>0 && pts.length>1){
+    const tol=Math.max(1,Math.round(pts.length*state.opts.bandPct/100));
+    let pu='0,'+y(0).toFixed(1), pl='0,'+y(0).toFixed(1);
+    pts.forEach((p,k)=>{
+      const x=((p.i+1)*cw).toFixed(1);
+      pu+=' '+x+','+y(pts[Math.min(pts.length-1,k+tol)].plan).toFixed(1);
+      pl+=' '+x+','+y(k-tol<0?0:pts[k-tol].plan).toFixed(1);
+    });
+    s+='<polygon points="'+pu+' '+pl.split(' ').reverse().join(' ')+'" fill="var(--c-band)" fill-opacity=".10"/>';
+    s+='<polyline points="'+pu+'" fill="none" stroke="var(--c-band)" stroke-width="1" stroke-dasharray="3 3" opacity=".85"/>';
+    s+='<polyline points="'+pl+'" fill="none" stroke="var(--c-band)" stroke-width="1" stroke-dasharray="3 3" opacity=".85"/>';
+  }
+  // 予定（黒の実線）
+  let pp='0,'+y(0).toFixed(1);
+  pts.forEach(p=> pp+=' '+((p.i+1)*cw).toFixed(1)+','+y(p.plan).toFixed(1));
+  s+='<polyline points="'+pp+'" fill="none" stroke="var(--c-plan)" stroke-width="1.8" stroke-linejoin="round"/>';
+  segs.forEach(g=>{
+    const v=valueAt(pts,g.i1,'plan'); if(v==null||v<0.4) return;
+    const x=clamp((g.i1+1)*cw,14,w-3);
+    s+='<text x="'+(x-3).toFixed(1)+'" y="'+(y(v)-5).toFixed(1)+'" text-anchor="end" font-size="9" font-family="IBM Plex Mono, monospace" fill="var(--c-plan)">'+v.toFixed(0)+'</text>';
+  });
+  // 実績（赤の実線）
+  const ap=pts.filter(p=>p.act!=null);
+  if(ap.length){
+    let s2='0,'+y(0).toFixed(1);
+    ap.forEach(o=> s2+=' '+((o.i+1)*cw).toFixed(1)+','+y(o.act).toFixed(1));
+    s+='<polyline points="'+s2+'" fill="none" stroke="var(--c-actual)" stroke-width="1.8" stroke-linejoin="round"/>';
+  }
+  svg.innerHTML=s;
+  const ax=$('#laxis');
+  ax.querySelectorAll('.tick').forEach(n=>n.remove());
+  [0,25,50,75,100].forEach(p=>{ const t=el('div','tick',p+'%'); t.style.top=y(p)+'px'; ax.appendChild(t); });
+  $('#curveLegend').innerHTML =
+    '<span>'+lineIcon('var(--c-plan)',false)+'予定</span>'+
+    '<span>'+lineIcon('var(--c-actual)',false)+'実績</span>'+
+    '<span>'+lineIcon('var(--c-band)',true)+'上下限</span>';
+}
+function lineIcon(c,dash,op){
+  return '<svg width="16" height="6" aria-hidden="true"><line x1="0" y1="3" x2="16" y2="3" stroke="'+c+'" stroke-width="2"'+(dash?' stroke-dasharray="4 2"':'')+(op?' opacity="'+op+'"':'')+'/></svg>';
+}
+function boxIcon(c,op){ return '<svg width="12" height="9" aria-hidden="true"><rect width="12" height="9" rx="1.5" fill="'+c+'"'+(op?' fill-opacity="'+op+'"':'')+'/></svg>'; }
+
+function renderMTab(){
+  const cw=state.opts.cw, box=$('#mtab'), pts=weekPoints();
+  box.innerHTML='';
+  const r1=el('div','mrow'), r2=el('div','mrow');
+  segs.forEach(g=>{
+    const left=g.i0*cw, width=(g.i1-g.i0+1)*cw;
+    const dec = width>=34?1:(width>=21?0:-1);
+    const fmt=v=> (v==null||dec<0)?'':v.toFixed(dec);
+    const mk=(row,cls,txt)=>{ const c=el('div','mcell '+cls,txt); c.style.left=left+'px'; c.style.width=width+'px'; row.appendChild(c); return c; };
+    mk(r1,'p', fmt(valueAt(pts,g.i1,'plan')));
+    mk(r2,'a', fmt(valueAt(pts,g.i1,'act')));
+  });
+  box.append(r1,r2);
+  renderWTab(pts);
+}
+function renderWTab(pts){
+  const cw=state.opts.cw, box=$('#wtab');
+  box.innerHTML='';
+  const head=el('div','whead'), rp=el('div','wrow'), ra=el('div','wrow');
+  pts.forEach(p=>{
+    const left=p.i0*cw, width=(p.i-p.i0+1)*cw;
+    const cell=(row,cls)=>{ const c=el('div','wcell '+cls); c.style.left=left+'px'; c.style.width=width+'px'; row.appendChild(c); return c; };
+    const h=cell(head,'h'); if(width>=22) h.textContent=p.label;
+    [['p','wplan'],['a','wact']].forEach(([cls,store])=>{
+      const c=cell(cls==='p'?rp:ra,cls);
+      const inp=el('input','wi '+cls); inp.type='number'; inp.min='0'; inp.max='100'; inp.step='0.1';
+      const v=state[store][p.key];
+      inp.value=(v!=null&&v!=='')?v:'';
+      inp.placeholder=(cls==='p')? p.auto.toFixed(0) : '–';
+      inp.title=p.label+' の週末時点 累計'+(cls==='p'?'予定':'実績')+'出来高（%）';
+      inp.addEventListener('input',()=>{
+        if(inp.value==='') delete state[store][p.key]; else state[store][p.key]=clamp(Number(inp.value),0,100);
+        renderCurve(); renderMonthOnly(); save();
+      });
+      c.appendChild(inp);
+    });
+  });
+  box.append(head,rp,ra);
+}
+function renderMonthOnly(){
+  const cw=state.opts.cw, pts=weekPoints();
+  const rows=$('#mtab').querySelectorAll('.mrow');
+  if(rows.length<2) return;
+  segs.forEach((g,i)=>{
+    const width=(g.i1-g.i0+1)*cw, dec = width>=34?1:(width>=21?0:-1);
+    const fmt=v=> (v==null||dec<0)?'':v.toFixed(dec);
+    if(rows[0].children[i]) rows[0].children[i].textContent=fmt(valueAt(pts,g.i1,'plan'));
+    if(rows[1].children[i]) rows[1].children[i].textContent=fmt(valueAt(pts,g.i1,'act'));
+  });
+}
+function syncPrintText(){
+  $('#pvName').textContent=state.meta.name||'';
+  $('#pvOwner').textContent=state.meta.owner||'';
+  $('#pvContractor').textContent=state.meta.contractor||'';
+  $('#pvTerm').textContent=state.meta.start.replace(/-/g,'/')+' 〜 '+state.meta.end.replace(/-/g,'/');
+}
+function updateHint(){
+  $('#dayCount').textContent='全 '+days.length+' 日';
+  $('#footLegend').innerHTML =
+    '<span>'+boxIcon('var(--c-sun)','.16')+'休日</span>'+
+    '<span>'+boxIcon('var(--c-insp)','.16')+'検査期間</span>'+
+    '<span>'+boxIcon('var(--c-bar)')+'予定</span>'+
+    '<span>'+boxIcon('var(--c-actual)')+'実績</span>'+
+    '<span>'+lineIcon('var(--c-band)',true)+'上下限</span>';
+  syncPrintText();
+}
+function applyScreenZoom(){
+  const z=clamp(state.opts.zoom||1,0.5,2);
+  $('#sheet').style.zoom = z===1? '' : z.toFixed(2);
+  const zv=$('#zoomVal'); if(zv) zv.textContent=Math.round(z*100)+'%';
+  layoutBoard();
+}
+function layoutBoard(){
+  const bd=$('#board'); if(!bd) return;
+  const z=clamp(state.opts.zoom||1,0.5,2);
+  bd.style.maxHeight='none';
+  const top=bd.getBoundingClientRect().top;
+  bd.style.maxHeight = Math.max(220,(window.innerHeight-top-28)/z)+'px';
+}
+function render(){ buildDays(); setVars(); renderBG(); renderHead(); renderRows(); renderCurve(); renderMTab(); renderPrintBars(); updateHint(); syncInspector(); layoutBoard(); }
+
+/* 印刷用の工程バーをSVGで生成（背景色OFFでも出る／計算値のみでレイアウトに依存しない） */
+function renderPrintBars(){
+  const svg=$('#bgSvg'); if(!svg) return;
+  const cs=getComputedStyle(document.documentElement), gv=n=>parseFloat(cs.getPropertyValue(n))||0;
+  const cw=state.opts.cw, rowh=gv('--rowh'), fs=noteFS();
+  const fam=(cs.getPropertyValue('--f-sheet')||'sans-serif').trim().replace(/"/g,'&quot;');
+  let s='';
+  const rowIndex={}; state.rows.forEach((r,i)=>rowIndex[r.id]=i);
+  state.rows.forEach((r,ri)=>{
+    const top=ri*rowh;
+    const draw=(t,kind)=>{
+      let a=idxOf(t.s), b=idxOf(t.e); if(b<a){const x=a;a=b;b=x;}
+      if(b<0||a>days.length-1) return;
+      const x=a*cw, w=Math.max(3,(b-a+1)*cw);
+      const col=(kind==='plan')?'var(--c-bar)':'var(--c-actual)';
+      const cy=top+rowh*((kind==='plan')?0.44:0.89);
+      s+='<rect x="'+x.toFixed(1)+'" y="'+(cy-1).toFixed(1)+'" width="'+w.toFixed(1)+'" height="2" fill="'+col+'"/>';
+      s+='<circle cx="'+x.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="3" fill="var(--c-paper)" stroke="'+col+'" stroke-width="1.4"/>';
+      s+='<circle cx="'+(x+w).toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="3" fill="var(--c-paper)" stroke="'+col+'" stroke-width="1.4"/>';
+    };
+    r.tasks.forEach(t=>draw(t,'plan'));
+    (r.acts||[]).forEach(t=>draw(t,'act'));
+  });
+  state.texts.forEach(tx=>{
+    const ri=rowIndex[tx.row]; if(ri===undefined||!tx.text) return;
+    const top=ri*rowh;
+    const x=clamp(idxOf(tx.at),0,days.length-1)*cw+cw/2;
+    const al=effAlign(x,tx.text,tx.align,fs);
+    const anc=(al==='left')?'start':(al==='right'?'end':'middle');
+    const col=(tx.band==='act')?'var(--c-actual)':'var(--c-bar)';
+    const y=top+rowh*((tx.band==='act')?0.72:0.20)+fs;
+    s+='<text x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" text-anchor="'+anc+'" font-size="'+fs+'" fill="'+col+'" font-family="'+fam+'">'+esc(tx.text)+'</text>';
+  });
+  const old=svg.querySelector('.pbars'); if(old) old.remove();
+  const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('class','pbars'); g.innerHTML=s; svg.appendChild(g);
+}
+
+/* ============================================================ バー操作 */
+const layerOf = (r,kind) => kind==='act' ? (r.acts||(r.acts=[])) : r.tasks;
+/* 同じ段の既存の線に重ならない範囲（anchor を含む空き区間） */
+function freeWindow(row,kind,except,anchor){
+  const arr = kind==='act' ? (row.acts||[]) : row.tasks;
+  let lo=0, hi=days.length-1, blocked=false;
+  arr.forEach(x=>{
+    if(x===except) return;
+    let a=idxOf(x.s), b=idxOf(x.e); if(b<a){const t=a;a=b;b=t;}
+    if(anchor>=a&&anchor<=b){ blocked=true; return; }
+    if(b<anchor) lo=Math.max(lo,b+1);
+    if(a>anchor) hi=Math.min(hi,a-1);
+  });
+  return {lo,hi,blocked};
+}
+function dayFromEvent(e,node){ const r=node.getBoundingClientRect(); return clamp(Math.floor((e.clientX-r.left)/state.opts.cw),0,days.length-1); }
+const rowById = id => state.rows.find(r=>r.id===id);
+
+$('#tlBody').addEventListener('mousedown',e=>{
+  const track=e.target.closest('.track'); if(!track) return;
+  const row=rowById(track.dataset.row); if(!row) return;
+  const textNode=e.target.closest('.btext');
+  const barNode=e.target.closest('.bar');
+  e.preventDefault();
+  if(textNode){
+    const tx=state.texts.find(o=>o.id===textNode.dataset.text); if(!tx) return;
+    selectText(tx);
+    dragging={mode:'text',tx:tx,node:textNode,track,grab:dayFromEvent(e,track),y0:e.clientY};
+    return;
+  }
+  if(barNode){
+    const kind=barNode.dataset.kind;
+    const arr = kind==='act' ? (row.acts||[]) : row.tasks;
+    const t=arr.find(x=>x.id===barNode.dataset.task); if(!t) return;
+    select(row,t,kind);
+    const hd=e.target.closest('.hd');
+    dragging={mode:hd?(hd.classList.contains('l')?'resizeL':'resizeR'):'move',row,t,node:barNode,track,kind:kind,
+      grab:dayFromEvent(e,track),s0:idxOf(t.s),e0:idxOf(t.e),x0:e.clientX};
+    barNode.style.cursor = dragging.mode==='move'?'grabbing':'ew-resize';
+  }else{
+    const d=dayFromEvent(e,track);
+    const tr=track.getBoundingClientRect();
+    const kind = ((e.clientY-tr.top)/tr.height) < 0.66 ? 'plan' : 'act';
+    const fw=freeWindow(row,kind,null,d);
+    if(fw.blocked){ toast('すでに線があります。既存の線をドラッグして調整してください'); return; }
+    const t={id:uid(),s:dateOf(d),e:dateOf(d),notes:[]};
+    layerOf(row,kind).push(t);
+    const node=barEl(row,t,kind); if(!node) return; node.classList.add('ghost'); track.appendChild(node);
+    select(row,t,kind);
+    dragging={mode:'create',row,t,node,track,grab:d,s0:d,e0:d,kind:kind,win:fw,x0:e.clientX};
+  }
+});
+window.addEventListener('mousemove',e=>{
+  if(rowDrag){ moveRowDrag(e); return; }
+  if(!dragging) return;
+  const d=dayFromEvent(e,dragging.track), t=dragging.t, n=days.length-1;
+  dragging.lastX=e.clientX;
+  if(dragging.lastD===undefined) dragging.lastD=dragging.grab;
+  if(d!==dragging.lastD){ dragging.moved=true; dragging.lastD=d; }
+  if(dragging.mode==='text'){
+    const tx=dragging.tx;
+    tx.at=dateOf(clamp(d,0,days.length-1));
+    const tr=dragging.track.getBoundingClientRect();
+    tx.band=((e.clientY-tr.top)/tr.height)<0.55?'plan':'act';
+    dragging.node.style.left=(clamp(d,0,days.length-1)*state.opts.cw+state.opts.cw/2)+'px';
+    dragging.node.classList.toggle('act',tx.band==='act');
+    dragging.node.classList.toggle('plan',tx.band!=='act');
+    return;
+  }
+  const kind=dragging.kind||'plan';
+  if(dragging.mode==='create'){
+    const w=dragging.win;
+    const a=clamp(Math.min(dragging.s0,d),w.lo,w.hi), b=clamp(Math.max(dragging.s0,d),w.lo,w.hi);
+    t.s=dateOf(a); t.e=dateOf(b);
+  }
+  else if(dragging.mode==='move'){
+    const len=dragging.e0-dragging.s0;
+    const ns=clamp(dragging.s0+(d-dragging.grab),0,n-len);
+    const w=freeWindow(dragging.row,kind,t,ns);
+    if(!w.blocked && ns>=w.lo && ns+len<=w.hi){ t.s=dateOf(ns); t.e=dateOf(ns+len); }
+  }
+  else if(dragging.mode==='resizeL'){
+    const w=freeWindow(dragging.row,kind,t,dragging.e0);
+    const s2=clamp(Math.min(d,dragging.e0),w.lo,dragging.e0);
+    t.s=dateOf(s2); t.e=dateOf(dragging.e0);
+  }
+  else {
+    const w=freeWindow(dragging.row,kind,t,dragging.s0);
+    const en=clamp(Math.max(d,dragging.s0),dragging.s0,w.hi);
+    t.s=dateOf(dragging.s0); t.e=dateOf(en);
+  }
+  const a=idxOf(t.s), b=idxOf(t.e), cw=state.opts.cw;
+  dragging.node.style.left=(a*cw)+'px';
+  dragging.node.style.width=Math.max(3,(b-a+1)*cw)+'px';
+  renderCurve(); syncInspector();
+});
+window.addEventListener('mouseup',()=>{
+  if(rowDrag){ endRowDrag(); return; }
+  if(!dragging) return;
+  const d=dragging; dragging=null;
+  d.node.classList.remove('ghost'); d.node.style.cursor='';
+  if(d.mode==='text'){ render(); save(); return; }
+  if(d.mode==='create'){
+    const moved=Math.abs((d.lastX||d.x0)-d.x0)>=5 || d.moved;
+    if(!moved){ const arr=layerOf(d.row,d.kind); const i=arr.indexOf(d.t); if(i>=0) arr.splice(i,1); d.node.remove(); sel=null; syncInspector(); return; }
+    render(); save(); return;
+  }
+  if(!d.moved) return;   /* 動いていない＝ただのクリック。DOMを保持してダブルクリックを効かせる */
+  render(); save();
+});
+function addTextAt(row,dayIdx,band){
+  const tx={id:uid(),row:row.id,at:dateOf(clamp(dayIdx,0,days.length-1)),band:band||'plan',text:'',align:'center'};
+  state.texts.push(tx);
+  render(); openTextEditor(tx);
+  return tx;
+}
+function openTextEditor(tx){
+  const node=document.querySelector('.btext[data-text="'+tx.id+'"]'); if(!node) return;
+  const holder=node.parentNode;
+  const inp=el('input','bar-edit'); inp.type='text'; inp.value=tx.text||'';
+  inp.style.left=node.style.left;
+  inp.style.top='calc(var(--rowh) * '+(tx.band==='act'?'0.55':'0.02')+')';
+  inp.style.width='180px';
+  inp.style.transform='translateX(-50%)';
+  holder.appendChild(inp); inp.focus(); inp.select();
+  let done=false;
+  const commit=()=>{
+    if(done) return; done=true;
+    tx.text=inp.value.trim();
+    if(!tx.text){ const i=state.texts.indexOf(tx); if(i>=0) state.texts.splice(i,1); selText=null; }
+    inp.remove(); render(); save();
+  };
+  inp.addEventListener('blur',commit);
+  inp.addEventListener('keydown',ev=>{
+    if(ev.key==='Enter'){ ev.preventDefault(); inp.blur(); }
+    if(ev.key==='Escape'){ inp.value=tx.text||''; inp.blur(); }
+  });
+}
+$('#tlBody').addEventListener('dblclick',e=>{
+  const tn=e.target.closest('.btext');
+  if(tn){ const tx=state.texts.find(o=>o.id===tn.dataset.text); if(tx) openTextEditor(tx); return; }
+  const track=e.target.closest('.track'); if(!track) return;
+  const row=rowById(track.dataset.row); if(!row) return;
+  const tr=track.getBoundingClientRect();
+  addTextAt(row, dayFromEvent(e,track), ((e.clientY-tr.top)/tr.height)<0.55?'plan':'act');
+});
+
+/* ---------- 選択・インスペクタ ---------- */
+function select(row,t,kind){
+  sel={row,t,kind}; selText=null;
+  document.querySelectorAll('.bar.sel,.lrow.sel,.btext.sel').forEach(n=>n.classList.remove('sel'));
+  const bn=document.querySelector('.bar[data-task="'+t.id+'"]'); if(bn) bn.classList.add('sel');
+  const lr=document.querySelector('.lrow[data-row="'+row.id+'"]'); if(lr) lr.classList.add('sel');
+  syncInspector();
+}
+function selectText(tx){
+  selText=tx; sel=null;
+  document.querySelectorAll('.bar.sel,.lrow.sel,.btext.sel').forEach(n=>n.classList.remove('sel'));
+  const n=document.querySelector('.btext[data-text="'+tx.id+'"]'); if(n) n.classList.add('sel');
+  syncInspector();
+}
+function deselect(){
+  sel=null; selText=null;
+  document.querySelectorAll('.bar.sel,.lrow.sel,.btext.sel').forEach(n=>n.classList.remove('sel'));
+  syncInspector();
+}
+function selArr(){ return sel ? (sel.kind==='act' ? (sel.row.acts||[]) : sel.row.tasks) : []; }
+function syncInspector(){
+  const box=$('#inspector');
+  if(selText && state.texts.indexOf(selText)>=0){
+    box.classList.add('show'); $('#inspBar').style.display='none'; $('#inspText').style.display='';
+    $('#inspTitle').textContent='文字';
+    if(document.activeElement!==$('#itText')) $('#itText').value=selText.text||'';
+    $('#itDate').value=selText.at;
+    $('#itBand').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.b===(selText.band||'plan')));
+    $('#itAlign').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.a===(selText.align||'center')));
+    return;
+  }
+  if(!sel || selArr().indexOf(sel.t)<0){ box.classList.remove('show'); return; }
+  box.classList.add('show'); $('#inspBar').style.display=''; $('#inspText').style.display='none';
+  const a=idxOf(sel.t.s), b=idxOf(sel.t.e);
+  $('#inspTitle').textContent=(sel.kind==='act'?'【実績】':'【予定】')+sel.row.name+' ／ '+(b-a+1)+'日';
+  $('#ibStart').value=sel.t.s; $('#ibEnd').value=sel.t.e;
+  $('#ibCopy').style.display = sel.kind==='act'?'none':'';
+}
+$('#itText').addEventListener('input',()=>{ if(selText){ selText.text=$('#itText').value; renderRows(); renderPrintBars(); save(); } });
+$('#itDate').addEventListener('change',()=>{ if(selText){ const k=clamp(idxOf($('#itDate').value),0,days.length-1); selText.at=dateOf(k); render(); save(); } });
+$('#itBand').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b||!selText) return; selText.band=b.dataset.b; render(); save(); });
+$('#itAlign').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b||!selText) return; selText.align=b.dataset.a; render(); save(); });
+$('#itDel').addEventListener('click',()=>{ if(!selText) return; const i=state.texts.indexOf(selText); if(i>=0) state.texts.splice(i,1); selText=null; render(); save(); });
+$('#itDup').addEventListener('click',()=>{ if(!selText) return;
+  const k=clamp(idxOf(selText.at)+7,0,days.length-1);
+  const nt={id:uid(),row:selText.row,at:dateOf(k),band:selText.band,text:selText.text,align:selText.align};
+  state.texts.push(nt); render(); selectText(nt); save(); });
+$('#ibStart').addEventListener('change',()=>{ if(sel){ sel.t.s=$('#ibStart').value; render(); save(); } });
+$('#ibEnd').addEventListener('change',()=>{ if(sel){ sel.t.e=$('#ibEnd').value; render(); save(); } });
+$('#ibDel').addEventListener('click',()=>{ if(!sel) return; const arr=selArr(), i=arr.indexOf(sel.t); if(i>=0) arr.splice(i,1); sel=null; render(); save(); });
+$('#ibDup').addEventListener('click',()=>{ if(!sel) return; const t=sel.t, len=idxOf(t.e)-idxOf(t.s);
+  const st=clamp(idxOf(t.e)+1,0,days.length-1-len);
+  const nt={id:uid(),s:dateOf(st),e:dateOf(st+len)};
+  selArr().push(nt); render(); select(sel.row,nt,sel.kind); save(); });
+$('#ibCopy').addEventListener('click',()=>{ if(!sel||sel.kind!=='plan') return;
+  const t=sel.t; if(!sel.row.acts) sel.row.acts=[];
+  const nt={id:uid(),s:t.s,e:t.e};
+  sel.row.acts.push(nt); render(); select(sel.row,nt,'act'); save(); toast('実績線を作成しました'); });
+$('#inspClose').addEventListener('click',deselect);
+
+window.addEventListener('keydown',e=>{
+  const tag=(e.target.tagName||'').toLowerCase();
+  if(tag==='input'||tag==='textarea'){ if(e.key==='Escape') e.target.blur(); return; }
+  if(e.key==='Escape'){ closeModal(); deselect(); }
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='y'){ e.preventDefault(); redo(); return; }
+
+  if(e.key==='Delete'||e.key==='Backspace'){
+    if(selText){ e.preventDefault(); const i=state.texts.indexOf(selText); if(i>=0) state.texts.splice(i,1); selText=null; render(); save(); return; }
+    if(sel){ e.preventDefault(); const arr=selArr(),i=arr.indexOf(sel.t); if(i>=0) arr.splice(i,1); sel=null; render(); save(); }
+  }
+});
+
+/* ---------- 行の並び替え ---------- */
+function startRowDrag(e,index){ e.preventDefault(); rowDrag={from:index,to:index}; document.querySelectorAll('.lrow')[index].classList.add('drag'); }
+function moveRowDrag(e){
+  const rows=document.querySelectorAll('.lrow'); if(!rows.length) return;
+  const first=rows[0].getBoundingClientRect(), h=first.height||30;
+  const to=clamp(Math.floor((e.clientY-first.top)/h),0,rows.length-1);
+  rowDrag.to=to;
+  rows.forEach((n,i)=> n.style.boxShadow=(i===to&&to!==rowDrag.from)?'inset 0 2px 0 var(--c-accent)':'');
+}
+function endRowDrag(){
+  const {from,to}=rowDrag; rowDrag=null;
+  document.querySelectorAll('.lrow').forEach(n=>{n.style.boxShadow='';n.classList.remove('drag');});
+  if(from!==to){ const r=state.rows.splice(from,1)[0]; state.rows.splice(to,0,r); }
+  render(); save();
+}
+
+/* ============================================================ toolbar */
+function addRow(){
+  state.rows.push({id:uid(),name:'',weight:5,color:PALETTE[state.rows.length%PALETTE.length],tasks:[],acts:[]});
+  render(); save();
+  const inputs=document.querySelectorAll('.rname'); const last=inputs[inputs.length-1]; if(last) last.focus();
+}
+$('#addRowInline').addEventListener('click',addRow);
+function setZoom(z){ state.opts.zoom=clamp(Math.round(z*20)/20,0.5,2); applyScreenZoom(); save(); }
+$('#segView').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; setView(b.dataset.view); });
+function setView(v){
+  state.opts.view=v;
+  $('#stage').style.display = v==='kanri'?'none':'';
+  $('#kanri').style.display = v==='kanri'?'':'none';
+  document.querySelectorAll('#segView .btn').forEach(b=>b.classList.toggle('on',b.dataset.view===v));
+  if(v==='kanri') renderKanri(); else { render(); applyScreenZoom(); }
+}
+$('#kUndo').addEventListener('click',undo);
+$('#kRedo').addEventListener('click',redo);
+$('#kAdd').addEventListener('click',()=>{
+  state.items.push({id:uid(),g:state.items.length?state.items[state.items.length-1].g:'',n:'',k:'',q:1,u:'',r:0});
+  renderKanri(); syncFromItems(); save();
+});
+$('#kClear').addEventListener('click',()=>{
+  if(!confirm('明細をすべて消去します。よろしいですか？')) return;
+  state.items=[]; state.iplan={}; state.iact={}; renderKanri(); renderCurve(); renderMTab(); save();
+});
+$('#btnUndo').addEventListener('click',undo);
+$('#btnRedo').addEventListener('click',redo);
+$('#zoomIn').addEventListener('click',()=>setZoom((state.opts.zoom||1)+0.1));
+$('#zoomOut').addEventListener('click',()=>setZoom((state.opts.zoom||1)-0.1));
+$('#zoomReset').addEventListener('click',()=>setZoom(1));
+window.addEventListener('resize',layoutBoard);
+$('#zoom').addEventListener('input',e=>{ state.opts.cw=Number(e.target.value); render(); save(); });
+$('#btnFit').addEventListener('click',fit);
+function fit(){
+  const bd=$('#board'); const lw=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--leftw'))||252;
+  const avail=Math.max(200,(bd?bd.clientWidth:1200)-lw-4);
+  state.opts.cw=clamp(Math.floor(avail/Math.max(1,totalDays())),3,34);
+  $('#zoom').value=state.opts.cw; render(); save();
+}
+function syncToggles(){ $('#zoom').value=state.opts.cw; }
+[['#mName','name'],['#mOwner','owner'],['#mContractor','contractor']].forEach(([q,k])=>{
+  $(q).addEventListener('input',()=>{ state.meta[k]=$(q).value; syncPrintText(); save(); });
+});
+['#mStart','#mEnd'].forEach(q=>{
+  $(q).addEventListener('change',()=>{
+    const s=$('#mStart').value, e=$('#mEnd').value; if(!s||!e) return;
+    if(diffDays(parse(s),parse(e))<0){ toast('終了日は開始日より後にしてください'); $('#mStart').value=state.meta.start; $('#mEnd').value=state.meta.end; return; }
+    state.meta.start=s; state.meta.end=e; buildDays(); fit(); save();
+  });
+});
+$('#mInspect').addEventListener('input',()=>{
+  state.meta.inspect=clamp(Math.round(Number($('#mInspect').value)||0),0,120);
+  render(); save();
+});
+
+/* ============================================================ 工程管理表 */
+function workDaysOf(i0,i1){ let n=0; for(let i=Math.max(0,i0);i<=Math.min(days.length-1,i1);i++){ const d=days[i]; if(d && !d.off && !d.inspect) n++; } return n; }
+function totalWorkDays(){ return workDaysOf(0,days.length-1); }
+const AUTO_RE=/共通仮設費|現場管理費|一般管理費|諸経費|現場経費/;
+function markAutoItems(list){ list.forEach(it=>{ if(AUTO_RE.test(it.g||'')||AUTO_RE.test(it.n||'')) it.auto='days'; }); return list; }
+function itemTotalR(){ return state.items.reduce((s,i)=>s+(Number(i.r)||0),0)||1; }
+function itemPlannedSum(it){
+  const store=state.iplan[it.id]||{}; let s=0;
+  Object.keys(store).forEach(k=>{ const v=Number(store[k]); if(!isNaN(v)) s+=v; });
+  return s;
+}
+function fmtQty(v){ if(!isFinite(v)) return '0'; const r=Math.round(v*1000)/1000; return String(r); }
+function residCellHTML(it){
+  if(it.auto==='days') return '<span class="autoq">—</span>';
+  const resid=(Number(it.q)||0)-itemPlannedSum(it);
+  return '<span'+(resid<0?' style="color:var(--c-actual)"':'')+'>'+fmtQty(resid)+'</span>';
+}
+function derivedWeekly(){
+  if(!state.items.length) return null;
+  const ps=periods(), totR=itemTotalR(), totW=totalWorkDays()||1;
+  const manual=state.items.filter(i=>i.auto!=='days');
+  const autos=state.items.filter(i=>i.auto==='days');
+  let lastA=-1, anyP=false;
+  ps.forEach((g,k)=>{
+    manual.forEach(it=>{
+      if(Number((state.iplan[it.id]||{})[g.key])>0) anyP=true;
+      if(Number((state.iact[it.id]||{})[g.key])>0) lastA=k;
+    });
+  });
+  let cp=0, ca=0;
+  const out={};
+  ps.forEach((g,k)=>{
+    const wd=workDaysOf(g.i0,g.i1);
+    let dp=0, da=0;
+    manual.forEach(it=>{
+      const q=Number(it.q)||0; if(!q) return;
+      const r=(Number(it.r)||0)/totR*100;
+      const p=Number((state.iplan[it.id]||{})[g.key])||0;
+      const ac=Number((state.iact[it.id]||{})[g.key])||0;
+      if(p) dp+=p/q*r;
+      if(ac) da+=ac/q*r;
+    });
+    if(anyP||autos.length){
+      autos.forEach(it=>{
+        const r=(Number(it.r)||0)/totR*100;
+        dp += wd/totW*r;
+        if(k<=lastA) da += wd/totW*r;
+      });
+    }
+    cp+=dp; ca+=da;
+    out[g.key]={plan:cp,act:ca,dp:dp,da:da,idx:k,wd:wd};
+  });
+  return {map:out,anyP:anyP,lastA:lastA,totW:totW};
+}
+function renderKanri(){
+  const wrap=$('#kwrap'); if(!wrap) return;
+  const ps=periods(), der=derivedWeekly();
+  if(!state.items.length){
+    wrap.innerHTML='<div style="padding:26px;color:var(--c-text-2);font-size:12.5px;line-height:1.9">'+
+      '明細がまだありません。<br>「＋ 明細を追加」で工種・名称・規格・数量・単位・構成比%を1行ずつ入力してください。<br>'+
+      '数量を入れると、工程表の工種・比率・予定線／実績線に自動で反映されます。</div>';
+    $('#kSum').textContent=''; return;
+  }
+  const totR=itemTotalR();
+  let h='<table class="kt"><thead><tr>'+
+    '<th class="f0" style="width:104px">工　種</th>'+
+    '<th class="f1" style="left:104px;width:180px">名称</th>'+
+    '<th class="f2" style="left:284px;width:96px">規格</th>'+
+    '<th class="f3" style="left:380px;width:62px">数量</th>'+
+    '<th class="f4" style="left:442px;width:64px" title="数量 − 計画の入力累計">残数</th>'+
+    '<th class="f5" style="left:506px;width:38px">単位</th>'+
+    '<th style="width:56px">構成比%</th><th style="width:22px"></th>';
+  ps.forEach(g=> h+='<th colspan="2">'+esc(g.label)+'</th>');
+  h+='</tr><tr><th class="f0"></th><th class="f1" style="left:104px"></th><th class="f2" style="left:284px"></th><th class="f3" style="left:380px"></th><th class="f4" style="left:442px"></th><th class="f5" style="left:506px"></th><th></th><th></th>';
+  ps.forEach(()=> h+='<th style="width:48px;color:var(--c-plan)">計画</th><th style="width:48px;color:var(--c-actual)">実施</th>');
+  h+='</tr></thead><tbody>';
+  const totW=totalWorkDays();
+  state.items.forEach((it,ri)=>{
+    const auto=(it.auto==='days');
+    h+='<tr data-i="'+it.id+'"'+(auto?' class="autorow"':'')+'>'+
+      '<td class="f0 grp"><input class="g" data-f="g" value="'+esc(it.g)+'"></td>'+
+      '<td class="f1" style="left:104px"><input class="n" data-f="n" value="'+esc(it.n)+'"></td>'+
+      '<td class="f2" style="left:284px"><input class="k" data-f="k" value="'+esc(it.k||'')+'"></td>'+
+      '<td class="f3 num" style="left:380px">'+(auto?'<span class="autoq">'+totW+'</span>':'<input class="q" data-f="q" type="number" step="any" value="'+(it.q||0)+'">')+'</td>'+
+      '<td class="f4 resid" style="left:442px">'+residCellHTML(it)+'</td>'+
+      '<td class="f5" style="left:506px">'+(auto?'<span class="autoq">日</span>':'<input class="u" data-f="u" value="'+esc(it.u||'')+'">')+'</td>'+
+      '<td class="num"><input class="q" data-f="r" type="number" step="any" value="'+((it.r/totR*100).toFixed(3))+'"></td>'+
+      '<td><button class="del" data-del="'+it.id+'">×</button></td>';
+    ps.forEach((g,k)=>{
+      if(auto){
+        const wd=der?der.map[g.key].wd:0;
+        const showA=(der&&k<=der.lastA);
+        h+='<td class="wp auto">'+(wd||'')+'</td><td class="wa auto">'+(showA&&wd?wd:'')+'</td>';
+        return;
+      }
+      const p=(state.iplan[it.id]||{})[g.key], a=(state.iact[it.id]||{})[g.key];
+      h+='<td class="wp"><input class="w p" type="number" step="any" data-k="'+g.key+'" data-t="p" value="'+(p!=null?p:'')+'"></td>'+
+         '<td class="wa"><input class="w a" type="number" step="any" data-k="'+g.key+'" data-t="a" value="'+(a!=null?a:'')+'"></td>';
+    });
+    h+='</tr>';
+  });
+  h+='<tr class="spacer"><td class="f0"></td><td class="f1" style="left:104px"></td><td colspan="'+(6+ps.length*2)+'"></td></tr>';
+  h+='</tbody><tfoot>';
+  const foot=(lbl,cls,fn)=>{
+    let r='<tr><td class="f0" colspan="1">'+lbl+'</td><td class="f1" style="left:104px"></td><td></td><td></td><td></td><td></td><td></td><td></td>';
+    ps.forEach(g=>{ const v=fn(g); r+='<td colspan="2" class="'+cls+'">'+v+'</td>'; });
+    return r+'</tr>';
+  };
+  h+=foot('当週 出来高 %','',g=>{ const d=der.map[g.key]; return (d.dp||d.da)? (d.dp.toFixed(2)+' / '+d.da.toFixed(2)) : '–'; });
+  h+=foot('累計 出来高 %','',g=>{ const d=der.map[g.key]; return '<span'+(d.plan>100.5?' style="color:var(--c-actual)"':'')+'>'+d.plan.toFixed(2)+'</span> / '+(d.idx<=der.lastA? d.act.toFixed(2):'–'); });
+  h+='</tfoot></table>';
+  wrap.innerHTML=h;
+  const amtInfo=state.items.length+' 項目 ／ 構成比合計 '+(totR*100/totR*100/100*100).toFixed(0)+'%';
+  $('#kSum').textContent=state.items.length+' 項目 ／ 週 '+ps.length+' 区分 ／ 計画累計 '+(der?der.map[ps[ps.length-1].key].plan.toFixed(1):'0')+'%';
+  wrap.querySelectorAll('tbody input').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      const id=inp.closest('tr').dataset.i, it=state.items.find(x=>x.id===id); if(!it) return;
+      let structChange=false;
+      if(inp.dataset.f){
+        const f=inp.dataset.f;
+        if(f==='q') it.q=Number(inp.value)||0;
+        else if(f==='r') it.r=(Number(inp.value)||0)/100;
+        else{
+          it[f]=inp.value;
+          if(f==='g'||f==='n'){
+            const before=it.auto; delete it.auto; markAutoItems([it]);
+            if(before!==it.auto){
+              if(it.auto){
+                if(f==='n') it.g=it.n;
+                it.n='';
+                delete state.iplan[it.id]; delete state.iact[it.id];
+              }
+              structChange=true;
+            }
+          }
+        }
+      }else{
+        const store=inp.dataset.t==='p'?state.iplan:state.iact, k=inp.dataset.k;
+        if(!store[id]) store[id]={};
+        if(inp.value==='') delete store[id][k]; else store[id][k]=Number(inp.value)||0;
+      }
+      syncFromItems();
+      if(structChange) renderKanri(); else updateKanriFoot();
+      save();
+    });
+  });
+  wrap.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{
+    const id=b.dataset.del;
+    state.items=state.items.filter(x=>x.id!==id); delete state.iplan[id]; delete state.iact[id];
+    renderKanri(); syncFromItems(); save();
+  }));
+}
+function updateKanriFoot(){
+  const der=derivedWeekly(); if(!der) return;
+  const ps=periods(), tf=$('#kwrap').querySelectorAll('tfoot tr');
+  document.querySelectorAll('#kwrap tbody tr[data-i]').forEach(tr=>{
+    const id=tr.dataset.i, it=state.items.find(x=>x.id===id); if(!it) return;
+    const cell=tr.querySelector('td.resid');
+    if(cell) cell.innerHTML=residCellHTML(it);
+  });
+  document.querySelectorAll('#kwrap tr.autorow').forEach(tr=>{
+    const wa=tr.querySelectorAll('td.auto.wa');
+    ps.forEach((g,i)=>{ if(wa[i]) wa[i].textContent=(der.lastA>=i && der.map[g.key].wd)? der.map[g.key].wd : ''; });
+  });
+  if(tf.length<2) return;
+  ps.forEach((g,i)=>{
+    const d=der.map[g.key];
+    const c1=tf[0].children[8+i], c2=tf[1].children[8+i];
+    if(c1) c1.textContent=(d.dp||d.da)?(d.dp.toFixed(2)+' / '+d.da.toFixed(2)):'–';
+    if(c2) c2.innerHTML='<span'+(d.plan>100.5?' style="color:var(--c-actual)"':'')+'>'+d.plan.toFixed(2)+'</span> / '+(d.idx<=der.lastA?d.act.toFixed(2):'–');
+  });
+  $('#kSum').textContent=state.items.length+' 項目 ／ 週 '+ps.length+' 区分 ／ 計画累計 '+der.map[ps[ps.length-1].key].plan.toFixed(1)+'%';
+}
+/* 明細（工種・数量）から工種行と工程線を組み立てる。数量が入るたびに自動で呼ばれる。 */
+function applyItemsToRows(){
+  if(!state.items.length) return;
+  const totR=itemTotalR(), g={};
+  state.items.forEach(it=>{ g[it.g]=(g[it.g]||0)+(Number(it.r)||0); });
+  const keep={}; state.rows.forEach(r=>keep[r.name]=r);
+  state.rows=Object.keys(g).map(name=>{
+    const old=keep[name];
+    return { id: old?old.id:uid(), name:name, weight:Math.round(g[name]/totR*1000)/10,
+             tasks: old?old.tasks:[], acts: old?old.acts:[] };
+  });
+}
+function autoBarsFromItems(){
+  const ps=periods();
+  state.rows.forEach(r=>{
+    const its=state.items.filter(i=>i.g===r.name);
+    const allAuto=its.length&&its.every(i=>i.auto==='days');
+    const der0=derivedWeekly();
+    const mk=(store,isAct)=>{
+      if(allAuto){
+        if(isAct){ if(!der0||der0.lastA<0) return []; return [{id:uid(),s:dateOf(ps[0].i0),e:dateOf(ps[der0.lastA].i1)}]; }
+        return [{id:uid(),s:dateOf(0),e:dateOf(workEndIdx())}];
+      }
+      const on=ps.map(g=> its.some(i=> Number((store[i.id]||{})[g.key])>0 ));
+      const bars=[]; let st=-1;
+      on.forEach((v,k)=>{
+        if(v && st<0) st=k;
+        if((!v||k===on.length-1) && st>=0){
+          const en=(v&&k===on.length-1)?k:k-1;
+          bars.push({id:uid(), s:dateOf(ps[st].i0), e:dateOf(ps[en].i1)});
+          st=-1;
+        }
+      });
+      return bars;
+    };
+    r.tasks=mk(state.iplan,false); r.acts=mk(state.iact,true);
+  });
+}
+/* 工程管理表の内容（工種・数量・週の入力）から工程表の工種行・比率・予定線／実績線を自動で作り直す */
+function syncFromItems(){
+  if(!state.items.length) return;
+  applyItemsToRows();
+  autoBarsFromItems();
+  sel=null; selText=null; render(); save();
+}
+/* ============================================================ 印刷 */
+const pageStyle=document.createElement('style');
+(document.head||document.body).appendChild(pageStyle);
+function setPageCSS(){ pageStyle.textContent='@page{ size:'+(state.opts.paper==='A4'?'A4':'A3')+' landscape; margin:8mm; }'; }
+const PAPER={A3:{w:420,h:297},A4:{w:297,h:210}};
+const ZOOM_OK=!!(window.CSS&&CSS.supports&&CSS.supports('zoom','0.5'));
+const BASE_ROWH=36, BASE_CURVEH=150, MAX_ROWH=44;
+let printed=false, screenCw=null;
+function measureSheet(){
+  const sheet=$('#sheet');
+  document.body.classList.add('measuring');
+  const w=Math.max(sheet.scrollWidth,sheet.getBoundingClientRect().width), h=sheet.scrollHeight;
+  document.body.classList.remove('measuring');
+  return {w,h};
+}
+function setGeom(rowh,curveh){
+  document.documentElement.style.setProperty('--rowh',rowh+'px');
+  document.documentElement.style.setProperty('--curveh',curveh+'px');
+  renderCurve(); renderPrintBars();
+}
+function preparePrint(){
+  const sheet=$('#sheet'), wrap=$('#printWrap');
+  sheet.style.transform='none'; sheet.style.zoom=''; wrap.style.width=''; wrap.style.height='';
+  if(screenCw==null) screenCw=state.opts.cw;
+  const P=PAPER[state.opts.paper]||PAPER.A3, mm=96/25.4, margin=8;
+  const availW=(P.w-margin*2)*mm, availH=(P.h-margin*2)*mm;
+  const leftw=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--leftw'))||252;
+  // 用紙幅ぴったりの列幅にする
+  state.opts.cw=Math.round(clamp((availW-leftw-2)/Math.max(1,days.length),0.9,44)*100)/100;
+  setGeom(BASE_ROWH,BASE_CURVEH); render();
+  sheet.style.width=Math.ceil(leftw+W()+2)+'px';
+  // 高さは行高・曲線高そのものを調整して用紙に合わせる（縮小変換に頼らない＝改ページが起きない）
+  setGeom(BASE_ROWH,BASE_CURVEH);
+  let m=measureSheet(), rowh=BASE_ROWH, curveh=BASE_CURVEH;
+  const nrow=Math.max(1,state.rows.length);
+  if(m.h>availH){
+    for(let it=0; it<18 && m.h>availH; it++){
+      const over=m.h-availH;
+      rowh=Math.max(26, rowh-Math.max(1,Math.ceil(over/(nrow+3))));
+      curveh=Math.max(80, curveh-Math.max(1,Math.ceil(over*0.3)));
+      setGeom(rowh,curveh); m=measureSheet();
+      if(rowh<=26 && curveh<=80) break;
+    }
+  }else if(m.h<availH-12){
+    const slack=availH-m.h;
+    const addRow=clamp(Math.floor(slack*0.55/nrow),0,MAX_ROWH-BASE_ROWH);
+    const rest=Math.max(0,slack-addRow*nrow);
+    setGeom(BASE_ROWH+addRow, Math.round(clamp(BASE_CURVEH+rest*0.85,BASE_CURVEH,availH*0.40)));
+    m=measureSheet();
+  }
+  const natW=leftw+W()+2;
+  const k=Math.min(availW/natW,availH/m.h,1)*0.995;
+  // zoom はレイアウト自体を縮めるため、印刷時に改ページが起きない（未対応環境は transform）
+  if(ZOOM_OK){ sheet.style.zoom=k.toFixed(5); wrap.style.width=''; wrap.style.height=''; }
+  else{
+    sheet.style.transformOrigin='top left';
+    sheet.style.transform='scale('+k.toFixed(5)+')';
+    wrap.style.width=Math.floor(natW*k)+'px';
+    wrap.style.height=Math.floor(m.h*k)+'px';
+  }
+  try{ window.__lastPrint={mw:natW,mh:m.h,k:k,availW:availW,availH:availH,cw:state.opts.cw,
+    media:(window.matchMedia&&window.matchMedia('print').matches)?'print':'screen'}; }catch(e){}
+  printed=true;
+}
+function restorePrint(){
+  const sheet=$('#sheet'), wrap=$('#printWrap');
+  sheet.style.transform=''; sheet.style.transformOrigin=''; sheet.style.width=''; sheet.style.zoom='';
+  wrap.style.width='100%'; wrap.style.height='';
+  if(screenCw!=null){ state.opts.cw=screenCw; screenCw=null; }
+  setGeom(BASE_ROWH,BASE_CURVEH); render(); applyScreenZoom(); printed=false;
+}
+window.addEventListener('beforeprint',preparePrint);
+window.addEventListener('afterprint',()=>{ setTimeout(restorePrint,80); });
+$('#btnPrint').addEventListener('click',()=>{
+  deselect(); preparePrint();
+  setTimeout(()=>{ window.print(); setTimeout(()=>{ if(printed) restorePrint(); },400); },60);
+});
+
+/* ============================================================ 保存 */
+const KEY='koutei-builder-v5';
+let saveTimer=null, undoStack=[], redoStack=[], lastSnap=null, lastPush=0;
+function persist(){ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){} }
+function snapshot(){ return JSON.stringify({meta:state.meta,cal:state.cal,rows:state.rows,actual:state.actual,wplan:state.wplan,wact:state.wact,texts:state.texts,items:state.items,iplan:state.iplan,iact:state.iact}); }
+function applySnapshot(js){
+  let o; try{ o=JSON.parse(js); }catch(e){ return; }
+  Object.assign(state.meta,o.meta||{});
+  if(o.cal) state.cal=o.cal;
+  state.rows=o.rows||[]; state.actual=o.actual||{}; state.wplan=o.wplan||{}; state.wact=o.wact||{}; state.texts=o.texts||[];
+  state.items=o.items||[]; state.iplan=o.iplan||{}; state.iact=o.iact||{};
+  sel=null; selText=null; applyMeta(); render(); renderKanri(); persist();
+}
+function save(){
+  const cur=snapshot();
+  if(lastSnap!==null && cur!==lastSnap){
+    const now=Date.now();
+    if(now-lastPush>300 || !undoStack.length){
+      undoStack.push(lastSnap);
+      if(undoStack.length>120) undoStack.shift();
+      redoStack.length=0; lastPush=now;
+    }
+  }
+  lastSnap=cur;
+  clearTimeout(saveTimer); saveTimer=setTimeout(persist,300);
+  updateUndoBtn();
+}
+function updateUndoBtn(){
+  [['#btnUndo','#kUndo',undoStack],['#btnRedo','#kRedo',redoStack]].forEach(([a,b,st])=>{
+    [a,b].forEach(q=>{ const n=$(q); if(n) n.disabled=!st.length; });
+  });
+}
+function undo(){
+  if(!undoStack.length){ toast('これ以上は戻せません'); return; }
+  redoStack.push(snapshot());
+  const prev=undoStack.pop(); lastSnap=prev; applySnapshot(prev); updateUndoBtn();
+}
+function redo(){
+  if(!redoStack.length) return;
+  undoStack.push(snapshot());
+  const nx=redoStack.pop(); lastSnap=nx; applySnapshot(nx); updateUndoBtn();
+}
+function load(){
+  try{
+    const raw=localStorage.getItem(KEY)||localStorage.getItem('koutei-builder-v4'); if(!raw) return false;
+    const o=JSON.parse(raw); if(!o||!o.rows||!o.rows.length) return false;
+    Object.assign(state.meta,o.meta||{}); Object.assign(state.opts,o.opts||{});
+    if(o.cal) Object.assign(state.cal,o.cal);
+    state.rows=o.rows.map(r=>({acts:[],...r}));
+    state.actual=o.actual||{}; state.wplan=o.wplan||{}; state.wact=o.wact||{}; state.texts=o.texts||[];
+    state.items=o.items||[]; state.iplan=o.iplan||{}; state.iact=o.iact||{};
+    migrateNotes();
+    forceFixedOpts();
+    return true;
+  }catch(e){ return false; }
+}
+function applyMeta(){
+  $('#mName').value=state.meta.name; $('#mOwner').value=state.meta.owner; $('#mContractor').value=state.meta.contractor;
+  $('#mStart').value=state.meta.start; $('#mEnd').value=state.meta.end; $('#mInspect').value=state.meta.inspect;
+}
+function openModal(html){ $('#modal').innerHTML=html; $('#veil').classList.add('show'); }
+function closeModal(){ $('#veil').classList.remove('show'); }
+$('#veil').addEventListener('mousedown',e=>{ if(e.target===$('#veil')) closeModal(); });
+
+/* ---------- 休日設定 ---------- */
+function parseJPDate(line){
+  const t=String(line).trim(); if(!t) return null;
+  let m=t.match(/^(\d{4})\s*[年\-\/\.]\s*(\d{1,2})\s*[月\-\/\.]\s*(\d{1,2})/);
+  if(!m) return null;
+  const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));
+  return isNaN(d)?null:iso(d);
+}
+$('#btnMenu').addEventListener('click',()=>{
+  openModal(
+    '<h2>設定</h2>'+
+    '<div class="row" style="flex-direction:column;align-items:stretch;gap:7px">'+
+      '<button class="mini" id="mCal">休日カレンダーの設定</button>'+
+      '<button class="mini" id="mPreset">標準工種セットを読み込む</button>'+
+      '<button class="mini" id="mEven">出来高比率を均等にする</button>'+
+      '<button class="mini" id="mFont">文字の書体・大きさ</button>'+
+      '<button class="mini" id="mData">データの保存・読込</button>'+
+      '<button class="mini" id="mHelp">使い方</button>'+
+      '<button class="mini" id="mClose">閉じる</button>'+
+    '</div>');
+  $('#mCal').onclick=openCalModal;
+  $('#mFont').onclick=openFontModal;
+  $('#mData').onclick=openDataModal;
+  $('#mHelp').onclick=openHelpModal;
+  $('#mPreset').onclick=()=>{
+    if(state.rows.some(r=>r.tasks.length)&&!confirm('標準工種セットを読み込みます。現在の工種と工程線は置き換えられます。よろしいですか？')) return;
+    state.rows=PRESET.map((p,i)=>({id:uid(),name:p[0],weight:p[1],tasks:[],acts:[]}));
+    sel=null; render(); save(); closeModal(); toast('標準工種セットを読み込みました');
+  };
+  $('#mEven').onclick=()=>{
+    const n=state.rows.length||1, v=Math.round((100/n)*10)/10;
+    state.rows.forEach(r=>r.weight=v);
+    if(state.rows.length) state.rows[state.rows.length-1].weight=Math.round((100-v*(n-1))*10)/10;
+    render(); save(); closeModal(); toast('出来高比率を均等にしました');
+  };
+  $('#mClose').onclick=closeModal;
+});
+
+function openFontModal(){
+  const fs=[0.85,1,1.15,1.3], names=['小','標準','大','特大'];
+  openModal('<h2>文字の書体・大きさ</h2><p>工程表の中に書く文字の見え方を変えられます。文字が切れてしまうときは、大きさを小さくするか書体を変えてください。</p>'+
+    '<div class="row" id="fontPick" style="flex-direction:column;align-items:stretch;gap:6px">'+
+      Object.keys(FONTS).map(k=>'<label class="opt"><input type="radio" name="fnt" value="'+k+'"'+(state.opts.font===k?' checked':'')+'>'+
+        '<span style="font-family:'+FONTS[k][1].replace(/"/g,'&quot;')+'">'+FONTS[k][0]+'　あア亜 型枠・足場・打設 123</span></label>').join('')+
+    '</div>'+
+    '<div class="row" style="margin-top:12px;align-items:center">'+
+      '<span style="font-size:12px;color:var(--c-text-2)">大きさ</span>'+
+      fs.map((v,i)=>'<button class="mini" data-fs="'+v+'" style="flex:0 0 auto'+(Math.abs((state.opts.fontScale||1)-v)<0.01?';border-color:var(--c-accent);font-weight:700':'')+'">'+names[i]+'</button>').join('')+
+    '</div>'+
+    '<div class="row"><button class="mini" id="fClose">閉じる</button></div>');
+  $('#fontPick').addEventListener('change',e=>{ state.opts.font=e.target.value; applyFont(); render(); save(); });
+  $('#modal').querySelectorAll('[data-fs]').forEach(b=>b.addEventListener('click',()=>{
+    state.opts.fontScale=Number(b.dataset.fs); applyFont(); render(); save(); openFontModal();
+  }));
+  $('#fClose').onclick=closeModal;
+}
+function openCalModal(){
+  const list=Object.keys(state.cal.off).sort().map(k=>k.replace(/-/g,'/')).join('\n');
+  const wlist=Object.keys(state.cal.work).sort().map(k=>k.replace(/-/g,'/')).join('\n');
+  openModal(
+    '<h2>休日カレンダーの設定</h2>'+
+    '<p>基本パターンを選び、現場カレンダーの休日を貼り付けてください。日曜は常に休日として扱います。</p>'+
+    '<div class="row" id="calBase">'+
+      ['sun','週休1日（日曜のみ）','satsun','週休2日（土・日）','biweekly','4週6休（日＋第2・第4土）']
+        .reduce((a,v,i,arr)=> i%2? a : a+'<label class="opt"><input type="radio" name="cb" value="'+arr[i]+'"'+(state.cal.base===arr[i]?' checked':'')+'>'+arr[i+1]+'</label>','')+
+      '<label class="opt"><input type="checkbox" id="calJp"'+(state.cal.jp?' checked':'')+'>国民の祝日を休日にする</label>'+
+    '</div>'+
+    '<div class="row" style="margin-top:14px;gap:14px;align-items:flex-start">'+
+      '<div style="flex:1 1 300px;min-width:260px"><div style="font-size:11.5px;margin-bottom:4px">追加の休日（1行1日付／2026年4月11日・2026/4/11 いずれも可）</div>'+
+        '<textarea id="calOff" spellcheck="false">'+esc(list)+'</textarea></div>'+
+      '<div style="flex:1 1 220px;min-width:200px"><div style="font-size:11.5px;margin-bottom:4px">例外の稼働日（休日ルールを打ち消す）</div>'+
+        '<textarea id="calWork" spellcheck="false">'+esc(wlist)+'</textarea></div>'+
+    '</div>'+
+    '<div class="row">'+
+      '<button class="mini" id="calApply">反映する</button>'+
+      '<button class="mini" id="calLoad2026">2026年度カレンダーを再読込</button>'+
+      '<button class="mini danger" id="calClear">追加休日をすべて消す</button>'+
+      '<button class="mini" id="calClose">閉じる</button>'+
+    '</div>'+
+    '<p style="margin-top:10px">ツールバーの「休日編集」をONにすると、工程表の日付欄をクリックするだけで 1 日ずつ休日／稼働日を切り替えられます。</p>');
+  $('#calApply').onclick=()=>{
+    const b=$('#calBase').querySelector('input[name=cb]:checked');
+    state.cal.base=b?b.value:'sun';
+    state.cal.jp=$('#calJp').checked;
+    const off={}, work={};
+    let bad=0;
+    $('#calOff').value.split(/\r?\n/).forEach(l=>{ if(!l.trim())return; const k=parseJPDate(l); if(k) off[k]=1; else bad++; });
+    $('#calWork').value.split(/\r?\n/).forEach(l=>{ if(!l.trim())return; const k=parseJPDate(l); if(k) work[k]=1; else bad++; });
+    state.cal.off=off; state.cal.work=work;
+    render(); save(); closeModal();
+    toast('休日カレンダーを反映しました'+(bad?'（'+bad+'行は日付として読めませんでした）':''));
+  };
+  $('#calLoad2026').onclick=()=>{ $('#calOff').value=CAL2026.map(k=>k.replace(/-/g,'/')).join('\n'); };
+  $('#calClear').onclick=()=>{ $('#calOff').value=''; };
+  $('#calClose').onclick=closeModal;
+}
+
+/* ---------- データ ---------- */
+function openDataModal(){
+  openModal(
+    '<h2>データの保存・読込</h2>'+
+    '<p>下のテキストをコピーして保管すれば、いつでもこの工程表を復元できます。貼り付けて「読込」で復元します。編集内容はこのブラウザに自動保存されています。</p>'+
+    '<textarea id="dataArea" spellcheck="false" style="height:210px"></textarea>'+
+    '<div class="row">'+
+      '<button class="mini" id="dCopy">コピー</button><button class="mini" id="dLoad">読込</button>'+
+      '<button class="mini" id="dFile">ファイルに保存</button>'+
+      '<label class="mini" style="text-align:center;cursor:pointer">ファイルから読込<input type="file" id="dOpen" accept="application/json,.json" style="display:none"></label>'+
+      '<button class="mini danger" id="dReset">全消去してやり直す</button><button class="mini" id="dClose">閉じる</button>'+
+    '</div>');
+  $('#dataArea').value=JSON.stringify(state,null,1);
+  $('#dCopy').onclick=()=>{ const a=$('#dataArea'); a.select();
+    (navigator.clipboard?navigator.clipboard.writeText(a.value):Promise.reject()).then(()=>toast('コピーしました'),
+      ()=>{ try{document.execCommand('copy');toast('コピーしました');}catch(e){toast('手動でコピーしてください');} }); };
+  $('#dLoad').onclick=()=>{ try{
+      const o=JSON.parse($('#dataArea').value); if(!o.rows) throw 0;
+      Object.assign(state.meta,o.meta||{}); Object.assign(state.opts,o.opts||{});
+      if(o.cal) Object.assign(state.cal,o.cal);
+      state.rows=o.rows.map(r=>({acts:[],...r})); state.actual=o.actual||{};
+      migrateNotes(); applyMeta(); syncToggles(); setPageCSS(); applyFont(); sel=null; selText=null; render(); save(); closeModal(); toast('読み込みました');
+    }catch(e){ toast('データの形式が正しくありません'); } };
+  $('#dFile').onclick=()=>{ try{
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,1)],{type:'application/json'}));
+      a.download=(state.meta.name||'工程表')+'.json'; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+      toast('ダウンロードが始まらない場合は、上のテキストをコピーして保存してください');
+    }catch(e){ toast('この環境では保存できません。上のテキストをコピーしてください'); } };
+  $('#dOpen').onchange=ev=>{ const f=ev.target.files[0]; if(!f) return;
+    const rd=new FileReader(); rd.onload=()=>{ $('#dataArea').value=rd.result; $('#dLoad').click(); }; rd.readAsText(f); };
+  $('#dReset').onclick=()=>{ if(!confirm('すべての入力を消去して初期状態に戻します。よろしいですか？')) return;
+    try{localStorage.removeItem(KEY);}catch(e){}
+    state.actual={}; state.wplan={}; state.wact={}; state.texts=[]; state.meta.name=state.meta.owner='';
+    state.cal.off={}; CAL2026.forEach(k=>state.cal.off[k]=1); state.cal.work={};
+    seed(); applyMeta(); sel=null; render(); save(); closeModal(); toast('初期化しました'); };
+  $('#dClose').onclick=closeModal;
+}
+
+function openHelpModal(){
+  openModal(
+    '<h2>使い方</h2>'+
+    '<div class="help-sec">工程線</div><dl class="help-grid">'+
+      '<dt>行の上半分を横にドラッグ</dt><dd>予定の線（黒）を引きます</dd>'+
+      '<dt>行の下半分を横にドラッグ</dt><dd>実績の線（赤）を引きます</dd>'+
+      '<dt>線をドラッグ / 端をドラッグ</dt><dd>移動 / 期間の伸縮。すでに線があるところには重ねて引けません</dd>'+
+      '<dt><kbd>Delete</kbd></dt><dd>選択中の線を削除</dd>'+
+    '</dl>'+
+    '<div class="help-sec">文字（線とは独立しています）</div><dl class="help-grid">'+
+      '<dt>どこでもダブルクリック</dt><dd>その日付の位置に文字を書けます。線の有無に関係なく、好きな日に好きな文章を何個でも置けます</dd>'+
+      '<dt>行の上半分 / 下半分</dt><dd>上半分に置くと黒（予定）、下半分に置くと赤（実績）になります</dd>'+
+      '<dt>文字をドラッグ</dt><dd>左右で日付を、上下で黒／赤を変えられます。ダブルクリックで書き直し、空欄で確定すると消えます</dd>'+
+      '<dt>文字をクリック</dt><dd>左下のパネルで日付・段・寄せを指定できます。<kbd>Delete</kbd>で削除</dd>'+
+    '</dl>'+
+    '<div class="help-sec">元に戻す</div><dl class="help-grid">'+
+      '<dt>↩ 戻す / ↪</dt><dd>直前の操作を取り消し、やり直します（<kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd>）</dd>'+
+    '</dl>'+
+    '<div class="help-sec">工種</div><dl class="help-grid">'+
+      '<dt>≡ をドラッグ</dt><dd>並び替え</dd>'+
+      '<dt>比率 %</dt><dd>工事全体に占める出来高の割合。合計100でなくても内部で按分します</dd>'+
+      '<dt>＋ 工種を追加</dt><dd>表の一番下の行から追加できます</dd>'+
+    '</dl>'+
+    '<div class="help-sec">工程管理表（週ごとの出来高）</div><dl class="help-grid">'+
+      '<dt>画面の切替</dt><dd>上の「工程表／工程管理表」で行き来します。管理表は印刷されません</dd>'+
+      '<dt>明細</dt><dd>「＋ 明細を追加」で工種・名称・規格・数量・単位・構成比%を1行ずつ入力します</dd>'+
+      '<dt>週ごとの数量</dt><dd>各週の計画・実施の数量を入れると、構成比に応じた出来高%が自動計算され、工程表の工種・比率・予定線（黒）／実績線（赤）・曲線・月別の数字にそのまま自動で反映されます。ボタン操作は不要です</dd>'+
+      '<dt>共通仮設費・現場管理費・一般管理費</dt><dd>この3項目は名前を認識して自動的に稼働日数で按分されます（チェック操作は不要）。数量は工期の実働日数（休日と検査期間を除いた日数）、各週は その週の実働日数が自動で入り、休日の多い週は自動的に少なくなります。実績は他の工種で実績を入れた週まで自動で計上します</dd>'+
+    '</dl>'+
+    '<div class="help-sec">出来高曲線</div><dl class="help-grid">'+
+      '<dt>予定</dt><dd>工種の比率と線の配置から週単位で自動計算します</dd>'+
+      '<dt>週ごとの入力</dt><dd>表の下にある水色の欄（印刷されません）に週末の累計%を直接入れて線を上書きできます。空欄にすると工程管理表の数量、それも無ければ工程線の配置から自動計算します</dd>'+
+      '<dt>月の数字</dt><dd>週の線から自動で算出され、こちらだけが印刷されます</dd>'+
+      '<dt>上下限</dt><dd>予定線を前後10%ずらした許容限界です</dd>'+
+    '</dl>'+
+    '<div class="help-sec">休日・検査期間・印刷</div><dl class="help-grid">'+
+      '<dt>設定 → 文字の書体・大きさ</dt><dd>ゴシック・明朝・丸ゴシックと文字サイズを選べます。文字が切れるときは小さくしてください</dd>'+
+      '<dt>設定 → 休日カレンダー</dt><dd>週休1日／週休2日／4週6休、祝日、現場カレンダーの貼り付け、1日単位の追加・除外</dd>'+
+      '<dt>検査</dt><dd>工期末から指定日数（既定14日）を検査期間として自動で確保します</dd>'+
+      '<dt>PDF出力 / 印刷</dt><dd>A3横 1 枚に自動で収めます。用紙を変えたいときはプリンターのプロパティで指定してください</dd>'+
+    '</dl>'+
+    '<div class="row"><button class="mini" onclick="document.getElementById(\'veil\').classList.remove(\'show\')">閉じる</button></div>');
+}
+
+let toastTimer=null;
+function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2800); }
+
+/* ============================================================ boot */
+const restored=load();
+forceFixedOpts();
+if(!restored) seed();
+applyMeta(); syncToggles(); setPageCSS(); applyFont(); buildDays(); render(); applyScreenZoom();
+setView(state.opts.view||'chart');
+lastSnap=snapshot(); updateUndoBtn();
+requestAnimationFrame(()=>{ if(!restored||!state.opts.cw||state.opts.cw<3) fit(); });
+})();
+</script>
+
+</body>
+</html>
