@@ -377,6 +377,14 @@ table.kt .del:hover{color:var(--c-actual)}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
+/* 工程管理表の印刷用（印刷の間だけ body に付く） */
+.kprint-only{display:none}
+.kprint .kwrap{overflow:visible;max-height:none;width:max-content}
+.kprint table.kt th,.kprint table.kt td{position:static!important;padding:1px 3px}
+.kprint table.kt thead tr:nth-child(2) th{width:auto!important}
+.kprint table.kt input.w{width:38px}
+.kprint table.kt tr.spacer{display:none}
+
 /* 印刷寸法の実測用（1フレーム内で付け外し） */
 .measuring .sheet{width:max-content;max-width:none!important;padding:0!important;gap:7px!important;border:0!important;box-shadow:none!important}
 .measuring .board{grid-template-columns:var(--leftw) max-content}
@@ -401,8 +409,14 @@ table.kt .del:hover{color:var(--c-actual)}
     color-scheme:light;
   }
   html,body{background:#fff!important;margin:0;padding:0}
-  .chrome,.kanri,.inspector,.veil,.toast,.xbtn,.addrow,.rowpad,.grip,.noprint{display:none!important}
-  .stage{padding:0;display:block;max-height:100vh;overflow:hidden}
+  .chrome,.inspector,.veil,.toast,.xbtn,.addrow,.rowpad,.grip,.noprint{display:none!important}
+  body:not(.kprint) .kanri,body.kprint .stage{display:none!important}
+  /* 余白は @page ではなく用紙サイズの枠の中で中央寄せして確保する（印刷ダイアログの余白設定に左右されない） */
+  .stage{padding:0;display:flex;align-items:center;justify-content:center;width:var(--pw);height:calc(var(--ph) - 1mm);overflow:hidden}
+  .kanri{padding:8mm;width:var(--pw);height:calc(var(--ph) - 1mm);overflow:hidden}
+  .kbar .mini,.knote2,table.kt .del{display:none!important}
+  .kprint-only{display:inline}
+  .kwrap{margin:0 auto}
   .print-wrap{overflow:hidden}
   .sheet{width:max-content;max-width:none!important;border:0;box-shadow:none;padding:0;gap:7px;transform-origin:top left}
   .board{overflow:visible!important;max-height:none!important;height:auto!important}
@@ -540,6 +554,7 @@ table.kt .del:hover{color:var(--c-actual)}
   <section class="kanri" id="kanri" style="display:none">
     <div class="kbar">
       <b>工程管理表</b>
+      <span class="kprint-only" id="kTitle"></span>
       <span class="knote" id="kSum"></span>
       <span class="spacer"></span>
       <button class="mini" id="kUndo" style="flex:0 0 auto">↩ 戻す</button>
@@ -548,7 +563,7 @@ table.kt .del:hover{color:var(--c-actual)}
       <button class="mini danger" id="kClear">明細を全消去</button>
     </div>
     <div class="kwrap" id="kwrap"></div>
-    <div class="knote2">数量を入れると、工程表の工種・比率・予定線／実績線・出来高カーブに自動で反映されます（この表は印刷されません）。反映された線の上には、工程表画面で自由に作業内容の文字を書き込めます。</div>
+    <div class="knote2">数量を入れると、工程表の工種・比率・予定線／実績線・出来高カーブに自動で反映されます。この画面で「PDF出力 / 印刷」を押すと、この表をA3横1枚で印刷します。反映された線の上には、工程表画面で自由に作業内容の文字を書き込めます。</div>
   </section>
 
   <div class="veil" id="veil"><div class="modal" id="modal"></div></div>
@@ -1603,8 +1618,11 @@ function syncFromItems(){
 /* ============================================================ 印刷 */
 const pageStyle=document.createElement('style');
 (document.head||document.body).appendChild(pageStyle);
-function setPageCSS(){ pageStyle.textContent='@page{ size:'+(state.opts.paper==='A4'?'A4':'A3')+' landscape; margin:8mm; }'; }
 const PAPER={A3:{w:420,h:297},A4:{w:297,h:210}};
+function setPageCSS(){
+  const p=state.opts.paper==='A4'?'A4':'A3', P=PAPER[p];
+  pageStyle.textContent='@page{ size:'+p+' landscape; margin:0; } :root{--pw:'+P.w+'mm;--ph:'+P.h+'mm}';
+}
 const ZOOM_OK=!!(window.CSS&&CSS.supports&&CSS.supports('zoom','0.5'));
 const BASE_ROWH=36, BASE_CURVEH=150, MAX_ROWH=44;
 let printed=false, screenCw=null;
@@ -1620,7 +1638,28 @@ function setGeom(rowh,curveh){
   document.documentElement.style.setProperty('--curveh',curveh+'px');
   renderCurve(); renderPrintBars();
 }
+/* 工程管理表を用紙1枚に収まる倍率で印刷する */
+function prepareKanriPrint(){
+  const wrap=$('#kwrap');
+  document.body.classList.add('kprint'); wrap.style.zoom='';
+  $('#kTitle').textContent=(state.meta.name||'')+'　'+state.meta.start.replace(/-/g,'/')+' 〜 '+state.meta.end.replace(/-/g,'/');
+  const tb=wrap.querySelector('table');
+  if(tb){
+    const P=PAPER[state.opts.paper]||PAPER.A3, mm=96/25.4, margin=8;
+    const availW=(P.w-margin*2)*mm, availH=(P.h-margin*2-1)*mm-($('.kbar').offsetHeight+12);
+    let k=Math.min(availW/tb.offsetWidth,availH/tb.offsetHeight,1)*0.99;
+    wrap.style.zoom=k.toFixed(5);
+    // 縮小すると罫線の丸めで表が少し広がるため、実寸を測って補正する
+    for(let i=0;i<3;i++){
+      const r=wrap.getBoundingClientRect(), f=Math.min(availW/r.width,availH/r.height);
+      if(f>=1) break;
+      k*=f*0.995; wrap.style.zoom=k.toFixed(5);
+    }
+  }
+  printed=true;
+}
 function preparePrint(){
+  if(state.opts.view==='kanri'){ prepareKanriPrint(); return; }
   const sheet=$('#sheet'), wrap=$('#printWrap');
   sheet.style.transform='none'; sheet.style.zoom=''; wrap.style.width=''; wrap.style.height='';
   if(screenCw==null) screenCw=state.opts.cw;
@@ -1665,6 +1704,9 @@ function preparePrint(){
   printed=true;
 }
 function restorePrint(){
+  if(document.body.classList.contains('kprint')){
+    document.body.classList.remove('kprint'); $('#kwrap').style.zoom=''; printed=false; return;
+  }
   const sheet=$('#sheet'), wrap=$('#printWrap');
   sheet.style.transform=''; sheet.style.transformOrigin=''; sheet.style.width=''; sheet.style.zoom='';
   wrap.style.width='100%'; wrap.style.height='';
@@ -1906,7 +1948,7 @@ function openHelpModal(){
       '<dt>＋ 工種を追加</dt><dd>表の一番下の行から追加できます</dd>'+
     '</dl>'+
     '<div class="help-sec">工程管理表（週ごとの出来高）</div><dl class="help-grid">'+
-      '<dt>画面の切替</dt><dd>上の「工程表／工程管理表」で行き来します。管理表は印刷されません</dd>'+
+      '<dt>画面の切替</dt><dd>上の「工程表／工程管理表」で行き来します。「PDF出力 / 印刷」は表示中の画面（工程表または工程管理表）を印刷します</dd>'+
       '<dt>明細</dt><dd>「＋ 明細を追加」で工種・名称・規格・数量・単位・構成比%を1行ずつ入力します</dd>'+
       '<dt>週ごとの数量</dt><dd>各週の計画・実施の数量を入れると、構成比に応じた出来高%が自動計算され、工程表の工種・比率・予定線（黒）／実績線（赤）・曲線・月別の数字にそのまま自動で反映されます。ボタン操作は不要です</dd>'+
       '<dt>共通仮設費・現場管理費・一般管理費</dt><dd>この3項目は名前を認識して自動的に稼働日数で按分されます（チェック操作は不要）。数量は工期の実働日数（休日と検査期間を除いた日数）、各週は その週の実働日数が自動で入り、休日の多い週は自動的に少なくなります。実績は他の工種で実績を入れた週まで自動で計上します</dd>'+
